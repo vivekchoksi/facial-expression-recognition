@@ -19,11 +19,11 @@ from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.utils import np_utils
 from keras.callbacks import History
-from optparse import OptionParser
 
 import os
 import numpy as np
 import argparse
+import logging
 
 IMG_DIM = 48
 DATA_DIR = 'data'
@@ -38,6 +38,8 @@ def parse_args():
   """
   train_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train.csv')
   val_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'val.csv')
+  default_num_train = 28709
+  default_num_val = 3589
 
   parser = argparse.ArgumentParser()
   parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
@@ -45,10 +47,12 @@ def parse_args():
   parser.add_argument('-l', default = DEFAULT_LR, help = 'learning rate', type=float)
   parser.add_argument('-r', default = DEFAULT_REG, help = 'regularization', type=float)
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
+  parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
+  parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
 
   args = parser.parse_args()
   params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
-  return args.td, args.vd, params
+  return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
   """
@@ -56,7 +60,7 @@ class CNN:
 
   """
 
-  def __init__(self, params={}):
+  def __init__(self, params={}, verbose=True):
     """
     Initialize the CNN model with a set of parameters.
 
@@ -64,20 +68,24 @@ class CNN:
       params: a dictionary containing values of the models' parameters.
 
     """
+    self.verbose = verbose
     self.params = params
+    logging.info('Initialized with params: {}'.format(params))
 
   def load_data(self, train_data_file, val_data_file, num_train=None, num_val=None):
     """
     Load training and validation data from files.
 
     Args:
-        train_data_file: path to the file containing training examples.
-        val_data_file: path to the file containing validation examples.
+      train_data_file: path to the file containing training examples.
+      val_data_file: path to the file containing validation examples.
 
     """
+    logging.info('Reading {} training examples from {}...'.format(num_train, train_data_file))
     self.X_train, self.y_train = self._load_data_from_file(train_data_file, num_train)
+    logging.info('Reading {} validation examples from {}...'.format(num_val, val_data_file))
     self.X_val, self.y_val = self._load_data_from_file(val_data_file, num_val)
-    
+
   def _load_data_from_file(self, filename, num_examples=None):
     if num_examples is None:
       num_examples = sum(1 for line in open(filename))
@@ -190,10 +198,13 @@ class CNN:
     f.close()
 
 def main():
-  train_data_file, val_data_file, params = parse_args()
+  # Set up logging.
+  logging.basicConfig(format="[%(name)s %(asctime)s]\t%(msg)s", level=logging.INFO)
+
+  train_data_file, val_data_file, num_train, num_val, params = parse_args()
 
   cnn = CNN(params)
-  cnn.load_data(train_data_file, val_data_file, num_train=800, num_val=200)
+  cnn.load_data(train_data_file, val_data_file, num_train=num_train, num_val=num_val)
   cnn.train() 
 
 if __name__ == '__main__':
