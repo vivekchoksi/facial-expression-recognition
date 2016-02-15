@@ -2,7 +2,7 @@
 
 # Can enter other parameters here.
 set servernumber [lindex $argv 0]
-set parameters [lindex $argv 1] # Placeholder.
+set parameters [lindex $argv 1]
 
 set timeout 10
 
