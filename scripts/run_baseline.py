@@ -23,9 +23,8 @@ def get_server_number(counter):
 # Keeps track of which corn server to use.
 counter = 0
 
-# TODO(arushir): Modify this for loop to loop over appropriate parameters.
 # These parameters will be passed to cnn-baseline.py.
-for parameters in ['...', '...', '...']:
+for parameters in ['-l 1e-8', '-l 1e-7', '-l 1e-6', '-l 1e-5', '-l 1e-4', '-l 1e-3', '-l 1e-2', '-l 1e-1']:
   os.system("/usr/bin/expect -f run_baseline.exp %s %s &"
     % (get_server_number(counter), parameters))
   counter += 1

@@ -29,15 +29,15 @@ IMG_DIM = 48
 DATA_DIR = 'data'
 DEFAULT_LR = 1e-8
 DEFAULT_REG = 1e-6
-DEFAULT_NB_EPOCH = 3
+DEFAULT_NB_EPOCH = 2
 
 def parse_args():
   """
   Parses the command line input.
 
   """
-  train_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
-  val_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
+  train_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train.csv')
+  val_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'val.csv')
 
   parser = argparse.ArgumentParser()
   parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
