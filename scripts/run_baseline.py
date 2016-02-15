@@ -19,9 +19,9 @@ def get_server_number(counter):
 counter = 0
 
 for i in xrange(3):
-	# Can add more parameters to the run_baseline.exp call as necessary.
-	parameters = "" # Placeholder.
-    os.system("/usr/bin/expect -f run_baseline.exp %s %s %s %s&" 
-      % (username, password, get_server_number(counter), parameters))
-    counter += 1
-    time.sleep(10)
+  # Can add more parameters to the run_baseline.exp call as necessary.
+  parameters = "" # Placeholder.
+  os.system("/usr/bin/expect -f run_baseline.exp %s %s %s %s &"
+    % (username, password, get_server_number(counter), parameters))
+  counter += 1
+  time.sleep(10)
