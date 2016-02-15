@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-# Can enter other parameters here.
+# Can extend this script to accept additional parameters here.
 set servernumber [lindex $argv 0]
 set parameters [lindex $argv 1]
 
