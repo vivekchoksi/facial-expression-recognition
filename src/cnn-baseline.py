@@ -183,6 +183,12 @@ class CNN:
 
     print(history.history)
 
+    # Print the results to a file
+    out_file = str(lr) + "_out.txt"
+    f = open(out_file, "w")
+    f.write(str(history.history))
+    f.close()
+
 def main():
   train_data_file, val_data_file, params = parse_args()
 
