@@ -11,7 +11,7 @@
 # > cd path/to/repo/scripts
 # > screen
 # > python run_baseline.py
-# > # You can press ctrl-d to detach from screen and ctrl-r to re-attach.
+# > # You can press "ctrl-a d" to detach from screen and "ctrl-a r" to re-attach.
 
 import os
 import time
@@ -24,7 +24,7 @@ def get_server_number(counter):
 counter = 0
 
 # These parameters will be passed to cnn-baseline.py.
-for parameters in ['-l 1e-8', '-l 1e-7', '-l 1e-6', '-l 1e-5', '-l 1e-4', '-l 1e-3', '-l 1e-2', '-l 1e-1']:
+for parameters in ['1e-8', '1e-7', '1e-6', '1e-5', '1e-4', '1e-3', '1e-2', '1e-1']:
   os.system("/usr/bin/expect -f run_baseline.exp %s %s &"
     % (get_server_number(counter), parameters))
   counter += 1
