@@ -23,10 +23,32 @@ from optparse import OptionParser
 
 import os
 import numpy as np
+import argparse
 
 IMG_DIM = 48
 DATA_DIR = 'data'
+DEFAULT_LR = 1e-8
+DEFAULT_REG = 1e-6
+DEFAULT_NB_EPOCH = 3
 
+def parse_args():
+  """
+  Parses the command line input.
+
+  """
+  train_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
+  val_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
+  parser.add_argument('-vd', default = val_data_file_default, help = 'validation data file')
+  parser.add_argument('-l', default = DEFAULT_LR, help = 'learning rate', type=float)
+  parser.add_argument('-r', default = DEFAULT_REG, help = 'regularization', type=float)
+  parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
+
+  args = parser.parse_args()
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
+  return args.td, args.vd, params
 
 class CNN:
   """
@@ -80,12 +102,12 @@ class CNN:
     Train the CNN model.
 
     """
-
-    # NOTE: Can write something like reg = self.params.get('reg', DEFAULT_REG)
-    # to set training parameters cleanly.
     batch_size = 32
     nb_classes = 7
-    nb_epoch = 1
+
+    nb_epoch = self.params.get('nb_epoch', DEFAULT_NB_EPOCH)
+    lr = self.params.get('lr', DEFAULT_REG)
+    reg = self.params.get('reg', DEFAULT_REG)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -126,7 +148,7 @@ class CNN:
     model.add(Activation('softmax'))
 
     # Use the Adam update rule.
-    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
     model.compile(loss='categorical_crossentropy', optimizer=adam)
 
@@ -161,15 +183,12 @@ class CNN:
 
     print(history.history)
 
-
 def main():
-  train_data_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
-  val_data_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train-small.csv')
+  train_data_file, val_data_file, params = parse_args()
 
-  cnn = CNN(params={})
+  cnn = CNN(params)
   cnn.load_data(train_data_file, val_data_file, num_train=800, num_val=200)
   cnn.train() 
-
 
 if __name__ == '__main__':
   main()
