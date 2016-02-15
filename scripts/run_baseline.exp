@@ -1,0 +1,47 @@
+#!/usr/bin/expect -f
+
+# Can enter other parameters here.
+set servernumber [lindex $argv 0]
+set parameters [lindex $argv 1] # Placeholder.
+
+set timeout 10
+
+# Print outputs in console.
+log_user 1
+
+# SSH into corn and automatically accept SSH keys.
+spawn ssh -oStrictHostKeyChecking=no corn$servernumber.stanford.edu 
+# sleep 2
+
+# Sending a password shouldn't be necessary if running while already logged
+# into a corn machine.
+# expect {
+#   "*assword*" {
+#     send "$password\r"
+#     sleep 3
+#   }
+# }
+
+expect {
+  # If prompted for two-step authentication, opt to authenticate via
+  # phone using the Duo app (option 1). When this line executes, you'll
+  # need to be ready to authenticate via phone.
+  "*Enter a passcode or select one*" {
+    send "1\r"
+    sleep 10
+  }
+}
+
+# Run the program.
+expect "*:~>"
+send "cd cs231n/facial-expression-recognition\r"
+
+set timeout -1
+expect "*>"
+send "python src/cnn-baseline.py $parameters\r"
+
+expect "*>"
+send_user "Exiting corn$servernumber.stanford.edu"
+send "exit\r"
+
+close
