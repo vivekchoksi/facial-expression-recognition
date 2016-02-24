@@ -38,7 +38,7 @@ send "cd cs231n/facial-expression-recognition\r"
 
 set timeout -1
 expect "*>"
-send "python src/cnn-baseline.py -l $parameters\r"
+send "python src/cnn-baseline.py $parameters\r"
 
 expect "*>"
 send_user "Exiting corn$servernumber.stanford.edu"

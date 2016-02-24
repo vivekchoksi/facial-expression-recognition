@@ -24,8 +24,10 @@ def get_server_number(counter):
 counter = 0
 
 # These parameters will be passed to cnn-baseline.py.
-for parameters in ['1e-8', '1e-7', '1e-6', '1e-5', '1e-4', '1e-3', '1e-2', '1e-1']:
-  os.system("/usr/bin/expect -f run_baseline.exp %s %s &"
-    % (get_server_number(counter), parameters))
+for parameters in ['-l 1e-8', '-l 1e-7', '-l 1e-6', '-l 1e-5', '-l 1e-4', '-l 1e-3', '-l 1e-2', '-l 1e-1']:
+  command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
+    % (get_server_number(counter), parameters)
+  print 'Executing command:', command
+  os.system(command)
   counter += 1
   time.sleep(5)
