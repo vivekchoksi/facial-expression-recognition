@@ -5,6 +5,8 @@ import pdb
 import theano
 import theano.tensor as T
 
+# Implementation adapted from https://github.com/Lasagne/Lasagne/pull/171
+
 _srng = T.shared_randomstreams.RandomStreams()
 
 class _Pooling2D2(Layer):
