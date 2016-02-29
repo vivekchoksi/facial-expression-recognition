@@ -143,13 +143,14 @@ class CNN:
     model.add(Convolution2D(32, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
 
-    model.add(Convolution2D(64, 3, 3, init=weight_init))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
-    model.add(FractionalMaxPooling2D(pool_size=(48/40., 48/40.), strides=(1, 1)))
+    model.add(FractionalMaxPooling2D(pool_size=(48/36., 48/36.), strides=(1, 1)))
     # model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
-    model.add(Convolution2D(64, 3, 3, init=weight_init))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
+    model.add(FractionalMaxPooling2D(pool_size=(36/24., 36/24.), strides=(1, 1)))
 
     model.add(Convolution2D(64, 3, 3, init=weight_init))
     model.add(Activation('relu'))
