@@ -14,7 +14,7 @@ from __future__ import print_function
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
+from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.utils import np_utils
@@ -25,13 +25,13 @@ import numpy as np
 import argparse
 import logging
 
-from pool import MaxPooling2D2
+from pool import FractionalMaxPooling2D
 
 IMG_DIM = 48
 DATA_DIR = 'data'
 DEFAULT_LR = 1e-3
 DEFAULT_REG = 0 # 1e-6
-DEFAULT_NB_EPOCH = 5
+DEFAULT_NB_EPOCH = 7
 
 def parse_args():
   """
@@ -140,15 +140,18 @@ class CNN:
 
     weight_init = 'he_normal'
 
-    # Input shape (1, 48, 48) convolved with 32 filters of shape 3x3.
-    # Output shape (32, )
-    # (48 - 1) / 3 + 1
-    model.add(ZeroPadding2D(padding=(1, 1), input_shape=(img_channels, img_rows, img_cols)))
-    model.add(Convolution2D(32, 3, 3, init=weight_init, border_mode='same'))
+    model.add(Convolution2D(32, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
-    model.add(MaxPooling2D2(pool_size=(30/46., 30/46.)))
 
-    model.add(Convolution2D(64, 3, 3, init=weight_init, input_shape=(1,6,6)))
+    model.add(Convolution2D(64, 3, 3, init=weight_init))
+    model.add(Activation('relu'))
+    model.add(FractionalMaxPooling2D(pool_size=(48/40., 48/40.), strides=(1, 1)))
+    # model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    model.add(Convolution2D(64, 3, 3, init=weight_init))
+    model.add(Activation('relu'))
+
+    model.add(Convolution2D(64, 3, 3, init=weight_init))
     model.add(Activation('relu'))
 
     model.add(Flatten())
