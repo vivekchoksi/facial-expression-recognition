@@ -6,6 +6,13 @@ import os
 import sys
 import math
 import matplotlib.pyplot as plt
+import argparse
+
+def parse_inputs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', default = '../outputs', help = 'path to the folder containing the log files')
+    args = parser.parse_args()
+    return args.f
 
 def read_files(path):
     results = {}
@@ -19,16 +26,15 @@ def read_files(path):
                 acc_array = line[1].strip().split(',')
                 acc = float(acc_array[-1].strip().split(']')[0])
                 print "accuracy: ", acc
-            if line[0] == 'val_acc':
+            elif line[0] == 'val_acc':
                 val_acc_array = line[1].strip().split(',')
                 val_acc = float(val_acc_array[-1].strip().split(']')[0])
                 print "validation accuracy: ", val_acc
-
-            if line[0] == 'lr':
+            elif line[0] == 'lr':
                 lr = float(line[1].strip()) 
-            if line[0] == 'reg':
+            elif line[0] == 'reg':
                 reg = float(line[1].strip()) 
-            if line[0] == 'dropout':
+            elif line[0] == 'dropout':
                 dropout = float(line[1].strip()) 
         results[(lr,reg)] = (acc, val_acc)
     return results
@@ -51,8 +57,6 @@ def plot_cross_val(results):
     # plot validation accuracy
     colors = [results[x][1] for x in results] # default size of markers is 20
     plt.subplot(2, 1, 2)
-            if line[0] == 'lr':
-                lr = float(line[1].strip()) 
     plt.scatter(x_scatter, y_scatter, marker_size, c=colors)
     plt.colorbar()
     plt.xlabel('log learning rate')
@@ -61,7 +65,7 @@ def plot_cross_val(results):
     plt.show()
 
 def main():
-    path = '../outputs/77_202_filters'
+    path = parse_inputs()
     results = read_files(path)
     plot_cross_val(results)
 
