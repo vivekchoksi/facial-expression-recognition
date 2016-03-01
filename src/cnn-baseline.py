@@ -32,6 +32,7 @@ DEFAULT_REG = 1e-6
 DEFAULT_NB_EPOCH = 2
 DEFAULT_LAYER_SIZE_1 = 32
 DEFAULT_LAYER_SIZE_2 = 64
+DEFAULT_DROPOUT = 0.25
 
 def parse_args():
   """
@@ -51,11 +52,12 @@ def parse_args():
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
   parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
-  parser.add_argument('-ls1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
-  parser.add_argument('-ls2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
+  parser.add_argument('-nf1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
+  parser.add_argument('-nf2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
+  parser.add_argument('-d', default = DEFAULT_DROPOUT, help = 'dropout rate', type=float)
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.ls1, 'nb_filters_2': args.ls2}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d}
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -122,6 +124,7 @@ class CNN:
     reg = self.params.get('reg', DEFAULT_REG)
     nb_filters_1 = self.params.get('nb_filters_1', DEFAULT_LAYER_SIZE_1)
     nb_filters_2 = self.params.get('nb_filters_2', DEFAULT_LAYER_SIZE_2)
+    dropout = self.params.get('dropout', DEFAULT_DROPOUT)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -145,19 +148,19 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same'))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(Dropout(0.25))
+    model.add(Dropout(dropout))
 
     model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
     model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(Dropout(0.25))
+    model.add(Dropout(dropout))
 
     model.add(Flatten())
     model.add(Dense(512))
     model.add(Activation('relu'))
-    # model.add(Dropout(0.5))
+    model.add(Dropout(dropout))
     model.add(Dense(nb_classes, init=weight_init))
     model.add(Activation('softmax'))
 
