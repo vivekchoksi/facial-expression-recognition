@@ -2,21 +2,8 @@ from keras.layers.convolutional import *
 from keras.layers.convolutional import _Pooling2D
 from keras import backend as K
 import numpy as np
-import pdb
 import theano
 import theano.tensor as T
-
-# Implementation adapted from https://github.com/Lasagne/Lasagne/pull/171
-
-_srng = T.shared_randomstreams.RandomStreams()
-
-def theano_shuffled(input):
-    n = input.shape[0]
-    shuffled = T.permute_row_elements(input.T, _srng.permutation(n=n)).T
-    return shuffled
-
-def fractional_conv_output_length(input_length, filter_size, stride):
-    return int(np.ceil(input_length / (filter_size * stride)))
 
 class _FractionalPooling2D(_Pooling2D):
     '''Abstract class for fractional max-pooling 2D layer.
@@ -33,8 +20,8 @@ class _FractionalPooling2D(_Pooling2D):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        rows = fractional_conv_output_length(rows, self.pool_size[0], self.strides[0])
-        cols = fractional_conv_output_length(cols, self.pool_size[1], self.strides[1])
+        rows = fractional_conv_output_length(rows, self.pool_size[0])
+        cols = fractional_conv_output_length(cols, self.pool_size[1])
 
         if self.dim_ordering == 'th':
             return (input_shape[0], input_shape[1], rows, cols)
@@ -44,7 +31,9 @@ class _FractionalPooling2D(_Pooling2D):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
 class FractionalMaxPooling2D(_FractionalPooling2D):
-    '''Fractional Max pooling operation for spatial data.
+    '''Fractional Max pooling operation for spatial data, using random
+    overlapping mode as described in Benjamin Graham's paper:
+    http://arxiv.org/abs/1412.6071.
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
@@ -73,35 +62,38 @@ class FractionalMaxPooling2D(_FractionalPooling2D):
 
     def _pooling_function(self, inputs, pool_size, strides,
                           border_mode, dim_ordering):
-        output = self.pool(inputs, strides)
+        output = self.pool(inputs)
         return output
 
-    def pool(self, inputs, strides):
-
+    def pool(self, inputs):
+        '''Convert the inputs into a fractionally max-pooled output tensor.
+        Implementation adapted from ebenolson:
+        https://github.com/Lasagne/Lasagne/pull/171
+        '''
         _, _, n_in0, n_in1 = self.input_shape
 
-        n_out0 = fractional_conv_output_length(n_in0, self.pool_size[0], strides[0])
-        n_out1 = fractional_conv_output_length(n_in1, self.pool_size[1], strides[1])
+        n_out0 = fractional_conv_output_length(n_in0, self.pool_size[0])
+        n_out1 = fractional_conv_output_length(n_in1, self.pool_size[1])
 
-        # Variable stride across the input creates fractional reduction
+        # Variable stride across the input creates fractional reduction.
         a = theano.shared(np.array([2] * (n_in0 - n_out0) + [1] * (2 * n_out0 - n_in0)))
         b = theano.shared(np.array([2] * (n_in1 - n_out1) + [1] * (2 * n_out1 - n_in1)))
 
-        # Randomize the input strides
+        # Randomize the input strides.
         a = theano_shuffled(a)
         b = theano_shuffled(b)
 
-        # Convert to input positions, starting at 0
+        # Convert to input positions, starting at 0.
         a = T.concatenate(([0], a[:-1]))
         b = T.concatenate(([0], b[:-1]))
         a = T.cumsum(a)
         b = T.cumsum(b)
 
-        # Positions of the other corners
+        # Positions of the other corners.
         c = T.clip(a + 1, 0, n_in0 - 1)
         d = T.clip(b + 1, 0, n_in1 - 1)
 
-        # Index the four positions in the pooling window and stack them
+        # Index the four positions in the pooling window and stack them.
         temp = T.stack(inputs[:, :, a, :][:, :, :, b],
                        inputs[:, :, c, :][:, :, :, b],
                        inputs[:, :, a, :][:, :, :, d],
@@ -110,3 +102,13 @@ class FractionalMaxPooling2D(_FractionalPooling2D):
         out = T.max(temp, axis=0)
 
         return out
+
+_srng = T.shared_randomstreams.RandomStreams()
+
+def theano_shuffled(input):
+    n = input.shape[0]
+    shuffled = T.permute_row_elements(input.T, _srng.permutation(n=n)).T
+    return shuffled
+
+def fractional_conv_output_length(input_length, filter_size):
+    return int(np.ceil(float(input_length) / filter_size))

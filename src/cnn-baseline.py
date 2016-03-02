@@ -149,7 +149,7 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same'))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2)), strides=(1, 1)))
+    # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
     model.add(Dropout(dropout))
 
     model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
