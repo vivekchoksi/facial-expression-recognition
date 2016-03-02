@@ -19,6 +19,7 @@ from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.utils import np_utils
 from keras.callbacks import History
+from pool import FractionalMaxPooling2D
 
 import os
 import numpy as np
@@ -27,8 +28,8 @@ import logging
 
 IMG_DIM = 48
 DATA_DIR = 'data'
-DEFAULT_LR = 1e-8
-DEFAULT_REG = 1e-6
+DEFAULT_LR = 1e-4
+DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
 DEFAULT_LAYER_SIZE_1 = 32
 DEFAULT_LAYER_SIZE_2 = 64
@@ -148,6 +149,7 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same'))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2)), strides=(1, 1)))
     model.add(Dropout(dropout))
 
     model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
