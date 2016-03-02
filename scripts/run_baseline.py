@@ -15,6 +15,8 @@
 
 import os
 import time
+import numpy as np
+import random
 
 def get_server_number(counter):
   # There are 30 corn servers, named corn01 through corn31.
@@ -23,11 +25,23 @@ def get_server_number(counter):
 # Keeps track of which corn server to use.
 counter = 0
 
-# These parameters will be passed to cnn-baseline.py.
-for parameters in ['-l 1e-8', '-l 1e-7', '-l 1e-6', '-l 1e-5', '-l 1e-4', '-l 1e-3', '-l 1e-2', '-l 1e-1']:
-  command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
-    % (get_server_number(counter), parameters)
-  print 'Executing command:', command
-  os.system(command)
-  counter += 1
-  time.sleep(5)
+# Generate random parameters in range
+lrs = np.random.uniform(1e-4,1e-1,2)
+regs = np.random.uniform(1e-6,1e-1,2)
+num_filters1 = random.sample(xrange(32,33), 1)
+num_filters2 = random.sample(xrange(64,65), 1)
+dropout_rates = np.random.uniform(0,1,2)
+
+for nf1 in num_filters1:
+  for nf2 in num_filters2:
+    for lr in lrs:
+      for reg in regs:
+        for dr in dropout_rates:
+          # These parameters will be passed to cnn-baseline.py.
+          parameters = "-l " + str(lr) + " -r " + str(reg) + " -d " + str(dr) + " -nf1 " + str(nf1) + " -nf2 " + str(nf2) + " -nt 3000 -e 5 "
+          command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
+            % (get_server_number(counter), parameters)
+          print 'Executing command:', command
+          os.system(command)
+          counter += 1
+          time.sleep(5)

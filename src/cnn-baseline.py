@@ -31,6 +31,9 @@ DATA_DIR = 'data'
 DEFAULT_LR = 1e-4
 DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
+DEFAULT_LAYER_SIZE_1 = 32
+DEFAULT_LAYER_SIZE_2 = 64
+DEFAULT_DROPOUT = 0.25
 
 def parse_args():
   """
@@ -50,9 +53,12 @@ def parse_args():
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
   parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
+  parser.add_argument('-nf1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
+  parser.add_argument('-nf2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
+  parser.add_argument('-d', default = DEFAULT_DROPOUT, help = 'dropout rate', type=float)
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d}
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -117,6 +123,9 @@ class CNN:
     nb_epoch = self.params.get('nb_epoch', DEFAULT_NB_EPOCH)
     lr = self.params.get('lr', DEFAULT_REG)
     reg = self.params.get('reg', DEFAULT_REG)
+    nb_filters_1 = self.params.get('nb_filters_1', DEFAULT_LAYER_SIZE_1)
+    nb_filters_2 = self.params.get('nb_filters_2', DEFAULT_LAYER_SIZE_2)
+    dropout = self.params.get('dropout', DEFAULT_DROPOUT)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -134,27 +143,26 @@ class CNN:
 
     weight_init = 'he_normal'
 
-    model.add(Convolution2D(32, 3, 3, init=weight_init, border_mode='same',
+    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same',
                 input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
-    model.add(Convolution2D(32, 3, 3, border_mode='same', init=weight_init))
+    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same'))
     model.add(Activation('relu'))
-    model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2)), strides=(1, 1)))
-    # model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(Dropout(0.25))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2)), strides=(1, 1)))
+    model.add(Dropout(dropout))
 
-    model.add(Convolution2D(64, 3, 3, border_mode='same', init=weight_init))
+    model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
-    model.add(Convolution2D(64, 3, 3, border_mode='same', init=weight_init))
+    model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
     model.add(Activation('relu'))
-    model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2)), strides=(1, 1)))
-    # model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(Dropout(0.25))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(dropout))
 
     model.add(Flatten())
     model.add(Dense(512))
     model.add(Activation('relu'))
-    # model.add(Dropout(0.5))
+    model.add(Dropout(dropout))
     model.add(Dense(nb_classes, init=weight_init))
     model.add(Activation('softmax'))
 
@@ -192,12 +200,23 @@ class CNN:
               validation_data=(X_val, Y_val),
               nb_worker=1, callbacks=[history], verbose=2)
 
-    print(history.history)
+    # Print the results to the console
+    for key in history.history:
+        print(key, history.history[key])
+
+    final_acc = history.history["acc"][-1] 
 
     # Print the results to a file
-    out_file = str(lr) + "_out.txt"
+    out_location = str("outputs/")
+    out_file = out_location + str(final_acc) + "_baseline.txt"
     f = open(out_file, "w")
-    f.write(str(history.history))
+    for key in history.history:
+        f.write(key + ": " + str(history.history[key]) + "\n")
+
+    # print parameters to the file
+    for key in self.params:
+        f.write(key + ": " + str(self.params[key]) + "\n")
+
     f.close()
 
 def main():
