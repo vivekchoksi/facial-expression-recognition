@@ -40,6 +40,7 @@ DEFAULT_DROPOUT = 0.25
 DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
+DEFAULT_FRAC_POOLING = False
 
 def parse_args():
   """
@@ -65,9 +66,10 @@ def parse_args():
   parser.add_argument('-o', default = DEFAULT_OUT_DIR, help = 'location of output directory')
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
+  parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2, 'fractional_pooling': args.frac}
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -137,6 +139,11 @@ class CNN:
     dropout = self.params.get('dropout', DEFAULT_DROPOUT)
     depth1 = self.params.get('depth1', DEFAULT_DEPTH1)
     depth2 = self.params.get('depth2', DEFAULT_DEPTH2)
+    fractional_pooling = self.params.get('fractional_pooling', DEFAULT_FRAC_POOLING)
+    if fractional_pooling:
+        print("Using fractional max pooling... \n")
+    else:
+        print("Using standard max pooling... \n")
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -162,8 +169,10 @@ class CNN:
         model.add(Activation('relu'))
         model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
         model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
+        if fractional_pooling:
+            model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
+        else:
+            model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Dropout(dropout))
 
     for i in xrange(depth2):
@@ -171,7 +180,10 @@ class CNN:
         model.add(Activation('relu'))
         model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
         model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        if fractional_pooling:
+            model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
+        else:
+            model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Dropout(dropout))
 
     model.add(Flatten(input_shape=(img_rows, img_cols)))
