@@ -1,16 +1,16 @@
 #!/usr/bin/python
 
-# File: cnn-baseline.py
+# File: cnn_baseline.py
 # ---------------------
 # Train a baseline deep convolutional neural network on a sample of the data
 # from the Facial Expression Recognition Challenge.
 # 
-# python cnn-baseline.py -l learning_rate -r regularization ...
+# python cnn_baseline.py -l learning_rate -r regularization ...
 #
 # Code adapted from: 
 # https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py
 # GPU run command:
-#  THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cnn-baseline.py
+#  THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cnn_baseline.py
 
 from __future__ import print_function
 from keras.preprocessing.image import ImageDataGenerator
