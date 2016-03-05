@@ -3,8 +3,6 @@
 # ---------------------
 # Train a deep convolutional neural network by fine-tuning on VGG16.
 #
-# Note that VGG16 expects input images with 3 channels.
-#
 # Code adapted from
 # https://github.com/fchollet/keras/blob/master/examples/mnist_transfer_cnn.py
 

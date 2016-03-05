@@ -4,7 +4,8 @@
 # Train a deep convolutional neural network by fine-tuning on VGG16
 # using different fine-tuning methods.
 #
-# Note that VGG16 expects input images with 3 channels.
+# Some code adapted from
+# https://github.com/fchollet/keras/blob/master/examples/mnist_transfer_cnn.py
 
 from __future__ import print_function
 import numpy as np
@@ -15,15 +16,16 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.utils import np_utils
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import History
 
 import argparse
 import h5py
 import logging
+import pdb
 from cnn_baseline import CNN
 
 now = datetime.datetime.now
-
-DATA_DIR = 'data'
 
 batch_size = 128
 nb_classes = 7
@@ -31,6 +33,7 @@ nb_epoch = 8
 
 IMG_DIM = 48
 DATA_DIR = 'data'
+OUTPUT_DIR = 'outputs'
 DEFAULT_LR = 1e-4
 DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
@@ -43,19 +46,21 @@ FULL_FROZEN_VGG = 1
 PART_FROZEN_VGG = 2
 FULL_TRAINABLE_VGG = 3
 
-# input image dimensions
+# Input image dimensions.
 img_rows, img_cols = 48, 48
-# number of convolutional filters to use
+
+# Number of convolutional filters to use.
 nb_filters = 32
-# size of pooling area for max pooling
+
+# Size of pooling area for max pooling.
 nb_pool = 2
-# convolution kernel size
+
+# Convolution kernel size
 nb_conv = 3
 
 def parse_args():
   """
-  Parses the command line input.
-
+  Parse the command line input.
   """
   train_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'train.csv')
   val_data_file_default = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'val.csv')
@@ -70,24 +75,25 @@ def parse_args():
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
   parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
-  parser.add_argument('-m', default = FULL_FROZEN_VGG, help = 'mode: ' +
+  parser.add_argument('-m', required = True, type=int, help = 'mode: ' +
     '1 -- train linear classifier on top of full VGG16 network; ' +
     '2 -- train linear classifier on top of part of VGG16 network; ' + 
     '3 -- train entire network, using VGG16 weights as initializations')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
   return args.td, args.vd, args.nt, args.nv, args.m, params
 
-
-def train_model(model, train, test, nb_classes):
-  # Format the input data.
+def prepare_data(train, val):
+  '''
+  Return formatted input data.
+  '''
   X_train = train[0]
-  X_test = test[0]
+  X_val = val[0]
   X_train = X_train.astype('float32')
-  X_test = X_test.astype('float32')
+  X_val = X_val.astype('float32')
   X_train /= 255
-  X_test /= 255
+  X_val /= 255
 
   # Convert from 1-channel images to 3-channel images by duplicating across
   # color channels
@@ -96,26 +102,25 @@ def train_model(model, train, test, nb_classes):
   X_train_expanded[:, 1, :, :] = X_train[:, 0, :, :]
   X_train_expanded[:, 2, :, :] = X_train[:, 0, :, :]
 
-  X_test_expanded = np.zeros((X_test.shape[0], 3, X_test.shape[2], X_test.shape[3]))
-  X_test_expanded[:, 0, :, :] = X_test[:, 0, :, :]
-  X_test_expanded[:, 1, :, :] = X_test[:, 0, :, :]
-  X_test_expanded[:, 2, :, :] = X_test[:, 0, :, :]
+  X_val_expanded = np.zeros((X_val.shape[0], 3, X_val.shape[2], X_val.shape[3]))
+  X_val_expanded[:, 0, :, :] = X_val[:, 0, :, :]
+  X_val_expanded[:, 1, :, :] = X_val[:, 0, :, :]
+  X_val_expanded[:, 2, :, :] = X_val[:, 0, :, :]
 
   X_train = X_train_expanded
-  X_test = X_test_expanded
-
-  print('X_train shape:', X_train.shape)
-  print(X_train.shape[0], 'train samples')
-  print(X_test.shape[0], 'test samples')
+  X_val = X_val_expanded
 
   # Convert class vectors to binary class matrices.
   Y_train = np_utils.to_categorical(train[1], nb_classes)
-  Y_test = np_utils.to_categorical(test[1], nb_classes)
+  Y_val = np_utils.to_categorical(val[1], nb_classes)
 
-  # QUESTION: Where is the learning rate here?
-  model.compile(loss='categorical_crossentropy', optimizer='adadelta')
+  return X_train, X_val, Y_train, Y_val
 
-  # Settings for preprocessing.
+def augment_data(X_train):
+  '''
+  Perform data augmentation on the input data and return an ImageDataGenerator
+  object.
+  '''
   datagen = ImageDataGenerator(
     featurewise_center=True,  # set input mean to 0 over the dataset
     samplewise_center=False,  # set each sample mean to 0
@@ -129,8 +134,31 @@ def train_model(model, train, test, nb_classes):
     vertical_flip=False)  # randomly flip images
 
   datagen.fit(X_train)
+  return datagen
 
-  # TODO: Get batch size; define history. Define self.params.
+def train_model(model, train, val, nb_classes, params):
+  '''
+  Train the CNN and output results to a file.
+  '''
+  X_train, X_val, Y_train, Y_val = prepare_data(train, val)
+  datagen = augment_data(X_train)
+
+  # QUESTION: Should I add regularization to the model? Would this mess
+  # with the weights initialization?
+  # QUESTION: Where is the learning rate here?
+  model.compile(loss='categorical_crossentropy', optimizer='adadelta')
+
+  nb_epoch = params.get('nb_epoch', DEFAULT_NB_EPOCH)
+  lr = params.get('lr', DEFAULT_REG)
+  reg = params.get('reg', DEFAULT_REG)
+
+  print('X_train shape:', X_train.shape)
+  print('Y_train shape:', Y_train.shape)
+  print('X_val shape:', X_val.shape)
+  print('Y_val shape:', Y_val.shape)
+  print(X_train.shape[0], 'train samples')
+  print(X_val.shape[0], 'val samples')
+
   # Fit the model on the batches generated by datagen.flow().
   history = History()
   model.fit_generator(datagen.flow(X_train, Y_train, batch_size=batch_size),
@@ -145,32 +173,32 @@ def train_model(model, train, test, nb_classes):
 
   final_acc = history.history["acc"][-1] 
 
-  # Print the results to a file.
-  out_location = str("outputs/")
-  out_file = out_location + str(final_acc) + "_transfer.txt"
+  # Write the results to a file.
+  out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), OUTPUT_DIR, '')
+  out_file = out_dir + str(final_acc) + "_transfer.txt"
+  print('Writing to file:', out_file)
   f = open(out_file, "w")
   for key in history.history:
       f.write(key + ": " + str(history.history[key]) + "\n")
 
   # Print parameters to the file.
-  for key in self.params:
-      f.write(key + ": " + str(self.params[key]) + "\n")
+  for key in params:
+      f.write(key + ": " + str(params[key]) + "\n")
 
   f.close()
 
-  # t = now()
-  # model.fit(X_train, Y_train,
-  #       batch_size=batch_size, nb_epoch=nb_epoch,
-  #       show_accuracy=True, verbose=2,
-  #       validation_data=(X_test, Y_test))
-  # print('Training time: %s' % (now() - t))
-  # score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=1)
-  # print('Test score:', score[0])
-  # print('Test accuracy:', score[1])
-
 def get_part_vgg_model(weights_path, trainable=False):
-  # Model replicates VGG16 architecture:
-  # https://gist.github.com/jimmie33/27c1c0a7736ba66c2395
+  '''
+  Return a model that includes the first few layers from VGG with linear
+  layers added on top.
+
+  Args:
+    weights_path: path to file containing VGG16 weights.
+    trainable: boolean representing whether the VGG layers should be
+      trainable or fixed.
+  '''
+
+  # Keep 3 layers of convolution from VGG16.
   model = Sequential()
   model.add(ZeroPadding2D((1, 1), input_shape=(3, img_cols, img_rows)))
   model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
@@ -181,15 +209,12 @@ def get_part_vgg_model(weights_path, trainable=False):
   model.add(ZeroPadding2D((1, 1)))
   model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
 
-  # load the weights of the VGG16 networks
-  # (trained on ImageNet, won the ILSVRC competition in 2014)
-  # note: when there is a complete match between your model definition
-  # and your weight savefile, you can simply call model.load_weights(filename)
+  # Load the weights of the VGG16 network.
   assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
   f = h5py.File(weights_path)
   for k in range(f.attrs['nb_layers']):
     if k >= len(model.layers):
-      # we don't look at the last (fully-connected) layers in the savefile
+      # We don't look at the last (fully connected) layers in the savefile.
       break
     g = f['layer_{}'.format(k)]
     weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
@@ -211,6 +236,15 @@ def get_part_vgg_model(weights_path, trainable=False):
   return model
 
 def get_full_vgg_model(weights_path, trainable=False):
+  '''
+  Return a model that includes the all layers from VGG with linear
+  layers added on top.
+
+  Args:
+    weights_path: path to file containing VGG16 weights.
+    trainable: boolean representing whether the VGG layers should be
+      trainable or fixed.
+  '''
 
   # Model replicates VGG16 architecture:
   # https://gist.github.com/jimmie33/27c1c0a7736ba66c2395
@@ -250,15 +284,12 @@ def get_full_vgg_model(weights_path, trainable=False):
   model.add(ZeroPadding2D((1, 1)))
   model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
 
-  # load the weights of the VGG16 networks
-  # (trained on ImageNet, won the ILSVRC competition in 2014)
-  # note: when there is a complete match between your model definition
-  # and your weight savefile, you can simply call model.load_weights(filename)
+  # Load the weights of the VGG16 network.
   assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
   f = h5py.File(weights_path)
   for k in range(f.attrs['nb_layers']):
     if k >= len(model.layers):
-      # we don't look at the last (fully-connected) layers in the savefile
+      # We don't look at the last (fully connected) layers in the savefile.
       break
     g = f['layer_{}'.format(k)]
     weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
@@ -295,25 +326,24 @@ def run_cnn():
   val_data_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'val.csv')
   weights_data_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), DATA_DIR, 'vgg16_weights.h5')
 
+  # Load data.
   train_data_file, val_data_file, num_train, num_val, mode, params = parse_args()
   X_train, y_train, X_val, y_val = load_data(train_data_file, val_data_file, num_train, num_val)
 
   logging.info('Running with mode {}'.format(mode))
+  logging.info('Running with params: {}'.format(params))
 
+  # Define appropriate model depending on input mode.
   model = None
   if mode == FULL_FROZEN_VGG:
-    model = get_full_vgg_model(weights_path, trainable=False)
+    model = get_full_vgg_model(weights_data_file, trainable=False)
   elif mode == PART_FROZEN_VGG:
-    model = get_part_vgg_model(weights_path, trainable=False)
-  elif mode === FULL_TRAINABLE_VGG:
-    logging.info('Running with params: {}'.format(params))
-    model = get_full_vgg_model(weights_path, trainable=True)
+    model = get_part_vgg_model(weights_data_file, trainable=False)
+  elif mode == FULL_TRAINABLE_VGG:
+    model = get_full_vgg_model(weights_data_file, trainable=True)
 
-
-
-  # Train and evaluate the model.
-  model = load_vgg_model(weights_data_file)
-  train_model(model, (X_train, y_train), (X_val, y_val), nb_classes)
+  # Train and evaluate model.
+  train_model(model, (X_train, y_train), (X_val, y_val), nb_classes, params)
 
 def main():
   logging.basicConfig(format="[%(name)s %(asctime)s]\t%(msg)s", level=logging.INFO)
