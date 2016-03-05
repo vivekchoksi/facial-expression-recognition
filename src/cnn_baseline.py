@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # File: cnn_baseline.py
 # ---------------------
 # Train a baseline deep convolutional neural network on a sample of the data
@@ -19,6 +21,7 @@ from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.utils import np_utils
 from keras.callbacks import History
+from keras.regularizers import l2, activity_l2
 from pool import FractionalMaxPooling2D
 
 import os
@@ -34,6 +37,9 @@ DEFAULT_NB_EPOCH = 2
 DEFAULT_LAYER_SIZE_1 = 32
 DEFAULT_LAYER_SIZE_2 = 64
 DEFAULT_DROPOUT = 0.25
+DEFAULT_OUT_DIR = '../outputs/'
+DEFAULT_DEPTH1 = 1
+DEFAULT_DEPTH2 = 2
 
 def parse_args():
   """
@@ -56,9 +62,12 @@ def parse_args():
   parser.add_argument('-nf1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
   parser.add_argument('-nf2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
   parser.add_argument('-d', default = DEFAULT_DROPOUT, help = 'dropout rate', type=float)
+  parser.add_argument('-o', default = DEFAULT_OUT_DIR, help = 'location of output directory')
+  parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
+  parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2}
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -126,6 +135,8 @@ class CNN:
     nb_filters_1 = self.params.get('nb_filters_1', DEFAULT_LAYER_SIZE_1)
     nb_filters_2 = self.params.get('nb_filters_2', DEFAULT_LAYER_SIZE_2)
     dropout = self.params.get('dropout', DEFAULT_DROPOUT)
+    depth1 = self.params.get('depth1', DEFAULT_DEPTH1)
+    depth2 = self.params.get('depth2', DEFAULT_DEPTH2)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -143,23 +154,27 @@ class CNN:
 
     weight_init = 'he_normal'
 
-    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same',
-                input_shape=(img_channels, img_rows, img_cols)))
+    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
-    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same'))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
-    model.add(Dropout(dropout))
 
-    model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
-    model.add(Activation('relu'))
-    model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(dropout))
+    for i in xrange(depth1):
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Activation('relu'))
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
+        model.add(Dropout(dropout))
 
-    model.add(Flatten())
+    for i in xrange(depth2):
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Activation('relu'))
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Dropout(dropout))
+
+    model.add(Flatten(input_shape=(img_rows, img_cols)))
     model.add(Dense(512))
     model.add(Activation('relu'))
     model.add(Dropout(dropout))
@@ -207,8 +222,8 @@ class CNN:
     final_acc = history.history["acc"][-1] 
 
     # Print the results to a file
-    out_location = str("outputs/")
-    out_file = out_location + str(final_acc) + "_baseline.txt"
+    out_location = self.params['output_dir']
+    out_file = out_location + str(final_acc) + "_out.txt"
     f = open(out_file, "w")
     for key in history.history:
         f.write(key + ": " + str(history.history[key]) + "\n")
