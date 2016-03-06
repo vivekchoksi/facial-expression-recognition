@@ -4,13 +4,19 @@
 # ---------------------
 # Train a baseline deep convolutional neural network on a sample of the data
 # from the Facial Expression Recognition Challenge.
-# 
-# python cnn_baseline.py -l learning_rate -r regularization ...
+#
+# Run this script from the scripts/ directory.
+# python ../src/cnn_baseline.py -l learning_rate -r regularization ...
 #
 # Code adapted from: 
 # https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py
 # GPU run command:
 #  THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cnn_baseline.py
+#
+# TODO:
+# * Fix this error: ValueError: The hardcoded shape for the image stack size (1) isn't the run time shape (3).
+# * Clean up code and merge.
+# * Work on other visualizations.
 
 from __future__ import print_function
 from keras.preprocessing.image import ImageDataGenerator
@@ -23,6 +29,7 @@ from keras.utils import np_utils
 from keras.callbacks import History
 from keras.regularizers import l2, activity_l2
 from pool import FractionalMaxPooling2D
+from filter_visualization import generate_filter_visualizations, load_custom_cnn
 
 import os
 import numpy as np
@@ -41,6 +48,7 @@ DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
+DEFAULT_VISUALIZE_FILTERS = False
 
 def parse_args():
   """
@@ -67,9 +75,13 @@ def parse_args():
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
   parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
+  parser.add_argument('-vis', action='store_true', default = DEFAULT_VISUALIZE_FILTERS, help = 'whether to visualize filters')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2, 'fractional_pooling': args.frac}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
+    'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
+    'vis': args.vis, 'fractional_pooling': args.frac}
+
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -128,6 +140,13 @@ class CNN:
     Train the CNN model.
 
     """
+    # TODO: Remove...
+    weights_path = '../data/custom_weights.h5'
+    new_model = load_custom_cnn(self.params, weights_path)
+    generate_filter_visualizations(new_model, 'conv_3', '../outputs/custom_filters.png',
+      img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1)
+    exit(1)
+
     batch_size = 32
     nb_classes = 7
 
@@ -144,6 +163,8 @@ class CNN:
         print("Using fractional max pooling... \n")
     else:
         print("Using standard max pooling... \n")
+
+    visualize_filters = self.params.get('visualize_filters', DEFAULT_VISUALIZE_FILTERS)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -164,10 +185,17 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
 
+    # Keep track of which convolutional layer we are at.
+    conv_counter = 1
+
     for i in xrange(depth1):
-        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
-        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
@@ -176,9 +204,13 @@ class CNN:
         model.add(Dropout(dropout))
 
     for i in xrange(depth2):
-        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
-        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
@@ -245,6 +277,21 @@ class CNN:
         f.write(key + ": " + str(self.params[key]) + "\n")
 
     f.close()
+
+    # FIXME: Generates Theano errors...
+    if visualize_filters:
+      weights_path = '../data/custom_weights.h5'
+      model.save_weights(weights_path, overwrite=True)
+      new_model = load_custom_cnn(self.params, weights_path)
+      generate_filter_visualizations(new_model, 'conv_3', '../outputs/custom_filters.png',
+        img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1)
+      # Specify how many filters, of what size, at which layer, to which output
+      # path to generate.
+      # filter_image_path = out_location + str(final_acc) + '_filters.png'
+      # generate_filter_visualizations(model, 'conv_3', filter_image_path,
+      #   img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1,
+      #   num_channels=1)
+
 
 def main():
   # Set up logging.
