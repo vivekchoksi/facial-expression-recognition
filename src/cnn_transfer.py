@@ -29,17 +29,11 @@ now = datetime.datetime.now
 
 batch_size = 128
 nb_classes = 7
-nb_epoch = 8
 
 IMG_DIM = 48
 DATA_DIR = 'data'
 OUTPUT_DIR = 'outputs'
-DEFAULT_LR = 1e-4
-DEFAULT_REG = 0
-DEFAULT_NB_EPOCH = 2
-DEFAULT_LAYER_SIZE_1 = 32
-DEFAULT_LAYER_SIZE_2 = 64
-DEFAULT_DROPOUT = 0.25
+DEFAULT_NB_EPOCH = 3
 
 # Mode enumeration.
 FULL_FROZEN_VGG = 1
@@ -70,8 +64,6 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
   parser.add_argument('-vd', default = val_data_file_default, help = 'validation data file')
-  parser.add_argument('-l', default = DEFAULT_LR, help = 'learning rate', type=float)
-  parser.add_argument('-r', default = DEFAULT_REG, help = 'regularization', type=float)
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
   parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
@@ -81,7 +73,7 @@ def parse_args():
     '3 -- train entire network, using VGG16 weights as initializations')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
+  params = {'nb_epoch': args.e, 'mode': args.m}
   return args.td, args.vd, args.nt, args.nv, args.m, params
 
 def prepare_data(train, val):
@@ -143,14 +135,9 @@ def train_model(model, train, val, nb_classes, params):
   X_train, X_val, Y_train, Y_val = prepare_data(train, val)
   datagen = augment_data(X_train)
 
-  # QUESTION: Should I add regularization to the model? Would this mess
-  # with the weights initialization?
-  # QUESTION: Where is the learning rate here?
-  model.compile(loss='categorical_crossentropy', optimizer='adadelta')
-
   nb_epoch = params.get('nb_epoch', DEFAULT_NB_EPOCH)
-  lr = params.get('lr', DEFAULT_REG)
-  reg = params.get('reg', DEFAULT_REG)
+
+  model.compile(loss='categorical_crossentropy', optimizer='adadelta')
 
   print('X_train shape:', X_train.shape)
   print('Y_train shape:', Y_train.shape)
