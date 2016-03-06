@@ -6,6 +6,9 @@
 #
 # Some code adapted from
 # https://github.com/fchollet/keras/blob/master/examples/mnist_transfer_cnn.py
+#
+# TODO:
+# * Add regularization to the linear layers.
 
 from __future__ import print_function
 import numpy as np
@@ -37,9 +40,6 @@ OUTPUT_DIR = 'outputs'
 DEFAULT_LR = 1e-4
 DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
-DEFAULT_LAYER_SIZE_1 = 32
-DEFAULT_LAYER_SIZE_2 = 64
-DEFAULT_DROPOUT = 0.25
 
 # Mode enumeration.
 FULL_FROZEN_VGG = 1
@@ -81,7 +81,7 @@ def parse_args():
     '3 -- train entire network, using VGG16 weights as initializations')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e}
+  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'mode': args.m}
   return args.td, args.vd, args.nt, args.nv, args.m, params
 
 def prepare_data(train, val):
@@ -143,14 +143,15 @@ def train_model(model, train, val, nb_classes, params):
   X_train, X_val, Y_train, Y_val = prepare_data(train, val)
   datagen = augment_data(X_train)
 
-  # QUESTION: Should I add regularization to the model? Would this mess
-  # with the weights initialization?
-  # QUESTION: Where is the learning rate here?
-  model.compile(loss='categorical_crossentropy', optimizer='adadelta')
 
   nb_epoch = params.get('nb_epoch', DEFAULT_NB_EPOCH)
   lr = params.get('lr', DEFAULT_REG)
   reg = params.get('reg', DEFAULT_REG)
+
+  # Use the Adam update rule.
+  adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+
+  model.compile(loss='categorical_crossentropy', optimizer=adam)
 
   print('X_train shape:', X_train.shape)
   print('Y_train shape:', Y_train.shape)
