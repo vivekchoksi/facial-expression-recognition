@@ -29,12 +29,11 @@ now = datetime.datetime.now
 
 batch_size = 128
 nb_classes = 7
-nb_epoch = 8
 
 IMG_DIM = 48
 DATA_DIR = 'data'
 OUTPUT_DIR = 'outputs'
-DEFAULT_NB_EPOCH = 2
+DEFAULT_NB_EPOCH = 3
 
 # Mode enumeration.
 FULL_FROZEN_VGG = 1
