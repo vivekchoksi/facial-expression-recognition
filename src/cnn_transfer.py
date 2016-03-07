@@ -74,7 +74,7 @@ def parse_args():
     '3 -- train entire network, using VGG16 weights as initializations')
 
   args = parser.parse_args()
-  params = {'nb_epoch': args.e, 'mode': args.m}
+  params = {'nb_epoch': args.e, 'output_dir': args.o, 'mode': args.m}
   return args.td, args.vd, args.nt, args.nv, args.m, params
 
 def prepare_data(train, val):
