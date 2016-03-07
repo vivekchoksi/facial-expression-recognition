@@ -25,6 +25,7 @@ from keras.utils import np_utils
 from keras.callbacks import History
 from keras.regularizers import l2, activity_l2
 from pool import FractionalMaxPooling2D
+from filter_visualization import generate_filter_visualizations, generate_class_visualizations, load_custom_cnn
 
 import os
 import numpy as np
@@ -97,6 +98,10 @@ class CNN:
     """
     self.verbose = verbose
     self.params = params
+
+    # An empty (uncompiled and untrained) model may be used for visualizations.
+    self.empty_model = None
+
     logging.info('Initialized with params: {}'.format(params))
 
   def load_data(self, train_data_file, val_data_file, num_train=None, num_val=None):
@@ -173,11 +178,14 @@ class CNN:
 
     weight_init = 'he_normal'
 
-    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
-    model.add(Activation('relu'))
-
     # Keep track of which convolutional layer we are at.
     conv_counter = 1
+
+    model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same',
+      name='conv_%d' % (conv_counter),
+      input_shape=(img_channels, img_rows, img_cols)))
+    conv_counter += 1
+    model.add(Activation('relu'))
 
     for i in xrange(depth1):
         model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
@@ -274,6 +282,44 @@ class CNN:
       print('Writing weights to file:', weights_path)
       model.save_weights(weights_path, overwrite=True)
 
+  def visualize_filters(self, weights_path, layer_name):
+    '''
+    Output an image visualizing filters at a particular layer in the CNN.
+    The generated images are input images that maximize the activations
+    of filters at a particular layer in the CNN.
+
+    Args:
+      weights_path: path to the .h5 file storing the model's weights.
+      layer_name: name of the layer (e.g. conv_3) to visualize.
+    '''
+
+    out_location = self.params['output_dir']
+    output_image = out_location + layer_name + "_filters.png"
+
+    # Load an empty (uncompiled) model from which to generate
+    # visualizations.
+    if not self.empty_model:
+      self.empty_model = load_custom_cnn(self.params, weights_path)
+
+    # Specify how many filters, of what size, at which layer, to which output
+    # path to generate. See the docstring for generate_filter_visualizations.
+    generate_filter_visualizations(self.empty_model, layer_name, output_image,
+      num_channels=1, img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=10, filter_grid_length=1)
+
+  def visualize_class(self, weights_path):
+    out_location = self.params['output_dir']
+    output_image = out_location + str(0) + "_class.png"
+
+    # Load an empty (uncompiled) model from which to generate
+    # visualizations.
+    if not self.empty_model:
+      self.empty_model = load_custom_cnn(self.params, weights_path)
+
+    # Specify how many filters, of what size, at which layer, to which output
+    # path to generate. See the docstring for generate_filter_visualizations.
+    generate_class_visualizations(self.empty_model, '', output_image,
+      num_channels=1, img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=10, filter_grid_length=1)
+
 
 def main():
   # Set up logging.
@@ -283,7 +329,11 @@ def main():
 
   cnn = CNN(params)
   cnn.load_data(train_data_file, val_data_file, num_train=num_train, num_val=num_val)
-  cnn.train() 
+  cnn.train()
+
+  # weights_path = '../outputs/custom_weights.h5'
+  # cnn.visualize_filters(weights_path, 'conv_3')
+  # cnn.visualize_class(weights_path)
 
 if __name__ == '__main__':
   main()
