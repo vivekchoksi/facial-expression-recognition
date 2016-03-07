@@ -30,7 +30,7 @@ modes = [1, 2, 3]
 
 for mode in modes:
   # These parameters will be passed to cnn_transfer.py.
-  parameters = "-m " + str(mode) + " -e 3 -o ./"
+  parameters = "-m " + str(mode) + " -e 1 -o ./ -nt 80 -nt 20"
   command = "/usr/bin/expect -f run_transfer.exp %s '%s' &" \
     % (get_server_number(counter), parameters)
   print 'Executing command:', command
