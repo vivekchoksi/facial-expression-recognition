@@ -1,6 +1,6 @@
 '''Visualization of the filters of VGG16, via gradient ascent in input space.
 
-Script taken from fchollet:
+Script adapted from fchollet:
 https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py
 
 This script can run on CPU in a few minutes (with the TensorFlow backend).
@@ -27,12 +27,80 @@ from keras.models import Sequential
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
-# dimensions of the generated pictures for each filter.
-img_width = 48
-img_height = 48
+def generate_class_visualizations(model, out_class, out_path, img_width=48, img_height=48, num_channels=1):
+    '''
+    Visualize the classifications of a model by generating an image that maximizes the
+    score of a particular output class. Note: this method is not yet working.
 
-# the name of the layer we want to visualize (see model definition below)
-layer_name = 'conv5_1'
+    Args:
+        model: Keras model with weights already loaded or trained.
+        out_class: the class (0-6) to visualize.
+        out_path: the output path for the filter visualization image.
+        img_width: width of the filters to generate.
+        img_height: height of the filters to generate.
+    '''
+    print('Starting class visualization...')
+
+    # this will contain our generated image
+    input_img = K.placeholder((1, num_channels, img_width, img_height))
+
+    # build the network with our input_img as input
+    model.layers[0].input = input_img
+
+    start_time = time.time()
+
+    # Build a loss function that maximizes the
+    # last layer's output (softmax activation).
+    layer_output = model.layers[-1].get_output()
+
+    # NOTE: Not sure if this is correct.
+    # Score for the class.
+    loss = K.mean(layer_output[0][int(out_class)])
+
+    # we compute the gradient of the input picture wrt this loss
+    grads = K.gradients(loss, input_img)[0]
+
+    # normalization trick: we normalize the gradient
+    grads = normalize(grads)
+
+    # this function returns the loss and grads given the input picture
+    iterate = K.function([input_img], [loss, grads])
+
+    # step size for gradient ascent
+    step = 1.
+
+    # we start from a gray image with some random noise
+    input_img_data = np.random.random((1, num_channels, img_width, img_height)) * 20 + 128.
+
+    # we run gradient ascent for many iterations
+    for i in range(10):
+        loss_value, grads_value = iterate([input_img_data])
+
+        # NOTE: Not sure how best to set step)val.
+        step_val = np.abs(1 / np.max(grads_value))
+        # pdb.set_trace()
+        input_img_data += grads_value * step_val
+
+
+        print('Current loss value:', loss_value)
+
+    # decode the resulting input image
+    if loss_value > 0:
+        img = deprocess_image(input_img_data[0])
+        end_time = time.time()
+        print('Processed in %ds' % (end_time - start_time))
+
+        img_expanded = np.zeros((3, img_width, img_height))
+        img_expanded[0, :, :] = img[:, :, 0]
+        img_expanded[1, :, :] = img[:, :, 0]
+        img_expanded[2, :, :] = img[:, :, 0]
+
+
+        # save the result to disk
+        print('Saving image as file:', out_path)
+        imsave(out_path, img_expanded)
+    else:
+        print('Loss value is < 0.')
 
 
 def generate_filter_visualizations(model, layer_name, out_path, img_width=48, img_height=48,
@@ -222,6 +290,10 @@ def load_custom_cnn(params, weights_path):
 
 
 def load_vgg():
+    # dimensions of the generated pictures for each filter.
+    img_width = 48
+    img_height = 48
+
     # path to the model weights file.
     weights_path = 'data/vgg16_weights.h5'
 
@@ -296,7 +368,7 @@ def normalize(x):
 
 def main():
     model = load_custom_cnn()
-    generate_filter_visualizations(model, 'conv3', 'outputs/filters.png', img_width=img_width, img_height=img_height, nb_filters=1, filter_grid_length=1)
+    generate_filter_visualizations(model, 'conv3', 'outputs/filters.png', img_width=48, img_height=48, nb_filters=1, filter_grid_length=1)
 
     # model = load_vgg()
     # generate_filter_visualizations(model, 'conv5_1', 'outputs/filters.png', img_width=img_width, img_height=img_height, nb_filters=1, filter_grid_length=1)
