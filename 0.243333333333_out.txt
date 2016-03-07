@@ -1,0 +1,17 @@
+acc: [0.21466666666666667, 0.24333333333333335]
+loss: [2.2356605752309164, 1.8113359858194986]
+batch: [46, 46]
+val_acc: [0.24937308442463083, 0.25076623014767346]
+val_loss: [1.8819892171300132, 1.8678320082624367]
+size: [31, 31]
+nb_filters_1: 64
+nb_filters_2: 64
+dropout: 0.31122658
+fractional_pooling: False
+depth2: 2
+depth1: 1
+save_weights: True
+nb_epoch: 2
+lr: 0.000831275
+output_dir: ./
+reg: 1.24e-05
