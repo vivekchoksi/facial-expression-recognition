@@ -23,14 +23,15 @@ def get_server_number(counter):
   return '%02d' % (counter % 30 + 1)
 
 # Keeps track of which corn server to use.
-counter = 5
+counter = 4
 
 # Generate random parameters in range
-modes = [1]# , 2, 3]
+modes = [1, 2, 3]
 
 for mode in modes:
   # These parameters will be passed to cnn_transfer.py.
-  parameters = "-m " + str(mode) + " -e 1 -o ./ -nt 80 -nv 20"
+#  parameters = "-m " + str(mode) + " -e 1 -o ./ -nt 80 -nv 20"
+  parameters = "-m " + str(mode) + " -e 3 -o ./"
   command = "/usr/bin/expect -f run_transfer.exp %s '%s' &" \
     % (get_server_number(counter), parameters)
   print 'Executing command:', command

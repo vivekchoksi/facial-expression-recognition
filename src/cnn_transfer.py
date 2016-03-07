@@ -163,7 +163,7 @@ def train_model(model, train, val, nb_classes, params):
 
   # Write the results to a file
   out_location = params['output_dir']
-  out_file = out_location + 'mode_' + str(params[mode]) + '_' + str(final_acc) + "_transfer.txt"
+  out_file = out_location + 'mode_' + str(params['mode']) + '_' + str(final_acc) + "_transfer.txt"
 
   print('Writing to file:', out_file)
   f = open(out_file, "w")
