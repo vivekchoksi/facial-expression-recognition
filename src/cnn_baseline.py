@@ -12,11 +12,6 @@
 # https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py
 # GPU run command:
 #  THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cnn_baseline.py
-#
-# TODO:
-# * Fix this error: ValueError: The hardcoded shape for the image stack size (1) isn't the run time shape (3).
-# * Clean up code and merge.
-# * Work on other visualizations.
 
 from __future__ import print_function
 from keras.preprocessing.image import ImageDataGenerator
@@ -29,7 +24,6 @@ from keras.utils import np_utils
 from keras.callbacks import History
 from keras.regularizers import l2, activity_l2
 from pool import FractionalMaxPooling2D
-from filter_visualization import generate_filter_visualizations, load_custom_cnn
 
 import os
 import numpy as np
@@ -48,7 +42,7 @@ DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
-DEFAULT_VISUALIZE_FILTERS = False
+DEFAULT_SAVE_WEIGHTS = False
 
 def parse_args():
   """
@@ -75,12 +69,14 @@ def parse_args():
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
   parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
-  parser.add_argument('-vis', action='store_true', default = DEFAULT_VISUALIZE_FILTERS, help = 'whether to visualize filters')
+  parser.add_argument('-save', action='store_true', default = DEFAULT_SAVE_WEIGHTS, help = 'whether to visualize filters')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
+  params = {
+    'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
     'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
-    'vis': args.vis, 'fractional_pooling': args.frac}
+    'save_weights': args.save, 'fractional_pooling': args.frac
+  }
 
   return args.td, args.vd, args.nt, args.nv, params
 
@@ -140,12 +136,6 @@ class CNN:
     Train the CNN model.
 
     """
-    # TODO: Remove...
-    weights_path = '../data/custom_weights.h5'
-    new_model = load_custom_cnn(self.params, weights_path)
-    generate_filter_visualizations(new_model, 'conv_3', '../outputs/custom_filters.png',
-      img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1)
-    exit(1)
 
     batch_size = 32
     nb_classes = 7
@@ -164,7 +154,7 @@ class CNN:
     else:
         print("Using standard max pooling... \n")
 
-    visualize_filters = self.params.get('visualize_filters', DEFAULT_VISUALIZE_FILTERS)
+    save_weights = self.params.get('save_weights', DEFAULT_SAVE_WEIGHTS)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -278,19 +268,10 @@ class CNN:
 
     f.close()
 
-    # FIXME: Generates Theano errors...
-    if visualize_filters:
-      weights_path = '../data/custom_weights.h5'
+    if save_weights:
+      weights_path = out_location + str(final_acc) + '_weights.h5'
+      print('Writing weights to file:', weights_path)
       model.save_weights(weights_path, overwrite=True)
-      new_model = load_custom_cnn(self.params, weights_path)
-      generate_filter_visualizations(new_model, 'conv_3', '../outputs/custom_filters.png',
-        img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1)
-      # Specify how many filters, of what size, at which layer, to which output
-      # path to generate.
-      # filter_image_path = out_location + str(final_acc) + '_filters.png'
-      # generate_filter_visualizations(model, 'conv_3', filter_image_path,
-      #   img_width=IMG_DIM, img_height=IMG_DIM, nb_filters=1, filter_grid_length=1,
-      #   num_channels=1)
 
 
 def main():
