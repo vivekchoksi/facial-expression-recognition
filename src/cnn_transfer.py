@@ -32,7 +32,7 @@ nb_classes = 7
 
 IMG_DIM = 48
 DATA_DIR = 'data'
-OUTPUT_DIR = 'outputs'
+DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_NB_EPOCH = 3
 
 # Mode enumeration.
@@ -65,6 +65,7 @@ def parse_args():
   parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
   parser.add_argument('-vd', default = val_data_file_default, help = 'validation data file')
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
+  parser.add_argument('-o', default = DEFAULT_OUT_DIR, help = 'location of output directory')
   parser.add_argument('-nt', default = default_num_train, help = 'number of training examples to use', type=int)
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
   parser.add_argument('-m', required = True, type=int, help = 'mode: ' +
@@ -73,7 +74,7 @@ def parse_args():
     '3 -- train entire network, using VGG16 weights as initializations')
 
   args = parser.parse_args()
-  params = {'nb_epoch': args.e, 'mode': args.m}
+  params = {'nb_epoch': args.e, 'output_dir': args.o, 'mode': args.m}
   return args.td, args.vd, args.nt, args.nv, args.m, params
 
 def prepare_data(train, val):
@@ -160,9 +161,10 @@ def train_model(model, train, val, nb_classes, params):
 
   final_acc = history.history["acc"][-1] 
 
-  # Write the results to a file.
-  out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), OUTPUT_DIR, '')
-  out_file = out_dir + str(final_acc) + "_transfer.txt"
+  # Write the results to a file
+  out_location = params['output_dir']
+  out_file = out_location + 'mode_' + str(params['mode']) + '_' + str(final_acc) + "_transfer.txt"
+
   print('Writing to file:', out_file)
   f = open(out_file, "w")
   for key in history.history:

@@ -11,7 +11,7 @@
 # > cd path/to/repo/scripts
 # > screen
 # > python run_baseline.py
-# > # You can press "ctrl-a d" to detach from screen and "ctrl-a r" to re-attach.
+# > You can press "ctrl-a d" to detach from screen and "ctrl-a r" to re-attach.
 
 import os
 import time

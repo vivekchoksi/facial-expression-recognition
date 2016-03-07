@@ -4,8 +4,9 @@
 # ---------------------
 # Train a baseline deep convolutional neural network on a sample of the data
 # from the Facial Expression Recognition Challenge.
-# 
-# python cnn_baseline.py -l learning_rate -r regularization ...
+#
+# Run this script from the scripts/ directory.
+# python ../src/cnn_baseline.py -l learning_rate -r regularization ...
 #
 # Code adapted from: 
 # https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py
@@ -42,6 +43,7 @@ DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
+DEFAULT_SAVE_WEIGHTS = False
 
 def parse_args():
   """
@@ -68,9 +70,15 @@ def parse_args():
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
   parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
+  parser.add_argument('-save', action='store_true', default = DEFAULT_SAVE_WEIGHTS, help = 'whether to visualize filters')
 
   args = parser.parse_args()
-  params = {'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2, 'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2, 'fractional_pooling': args.frac}
+  params = {
+    'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
+    'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
+    'save_weights': args.save, 'fractional_pooling': args.frac
+  }
+
   return args.td, args.vd, args.nt, args.nv, params
 
 class CNN:
@@ -129,6 +137,7 @@ class CNN:
     Train the CNN model.
 
     """
+
     batch_size = 32
     nb_classes = 7
 
@@ -145,6 +154,8 @@ class CNN:
         print("Using fractional max pooling... \n")
     else:
         print("Using standard max pooling... \n")
+
+    save_weights = self.params.get('save_weights', DEFAULT_SAVE_WEIGHTS)
 
     X_train, y_train = self.X_train, self.y_train
     X_val, y_val = self.X_val, self.y_val
@@ -165,10 +176,17 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', input_shape=(img_channels, img_rows, img_cols)))
     model.add(Activation('relu'))
 
+    # Keep track of which convolutional layer we are at.
+    conv_counter = 1
+
     for i in xrange(depth1):
-        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
-        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
@@ -177,9 +195,13 @@ class CNN:
         model.add(Dropout(dropout))
 
     for i in xrange(depth2):
-        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
-        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg)))
+        model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
+          name='conv_%d' % (conv_counter)))
+        conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
@@ -246,6 +268,12 @@ class CNN:
         f.write(key + ": " + str(self.params[key]) + "\n")
 
     f.close()
+
+    if save_weights:
+      weights_path = out_location + str(final_acc) + '_weights.h5'
+      print('Writing weights to file:', weights_path)
+      model.save_weights(weights_path, overwrite=True)
+
 
 def main():
   # Set up logging.
