@@ -327,12 +327,12 @@ def main():
   train_data_file, val_data_file, num_train, num_val, params = parse_args()
 
   cnn = CNN(params)
-  # cnn.load_data(train_data_file, val_data_file, num_train=num_train, num_val=num_val)
-  # cnn.train()
+  cnn.load_data(train_data_file, val_data_file, num_train=num_train, num_val=num_val)
+  cnn.train()
 
-  weights_path = '../outputs/custom_weights.h5'
+  # weights_path = '../outputs/custom_weights.h5'
   # cnn.visualize_filters(weights_path, 'conv_3')
-  cnn.visualize_class(weights_path)
+  # cnn.visualize_class(weights_path)
 
 if __name__ == '__main__':
   main()
