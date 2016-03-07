@@ -42,7 +42,7 @@ for d1 in depth1s:
           for reg in regs:
             for dr in dropout_rates:
               # These parameters will be passed to cnn-deep.py.
-              parameters = "-l " + str(lr) + " -r " + str(reg) + " -d " + str(dr) + " -nf1 " + str(nf1) + " -nf2 " + str(nf2) + " -dp1 " + str(d1) + " -dp2 " + str(d2) + " -nt 3000 -e 3 -o ./"
+              parameters = "-l " + str(lr) + " -r " + str(reg) + " -d " + str(dr) + " -nf1 " + str(nf1) + " -nf2 " + str(nf2) + " -dp1 " + str(d1) + " -dp2 " + str(d2) + " -nt 3000 -e 3 -o ./ -frac"
               command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
                 % (get_server_number(counter), parameters)
               print 'Executing command:', command
