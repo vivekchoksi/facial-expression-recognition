@@ -26,8 +26,8 @@ def get_server_number(counter):
 counter = 0
 
 # Generate random parameters in range
-lrs = np.random.uniform(1e-4,1e-1,3)
-regs = np.random.uniform(1e-6,1e-1,3)
+lrs = np.random.uniform(1e-4,1e-2,1)
+regs = np.random.uniform(1e-6,1e-4,1)
 num_filters1 = random.sample(xrange(64,65), 1)
 num_filters2 = random.sample(xrange(64,65), 1)
 dropout_rates = np.random.uniform(0,0.3,1)
@@ -42,7 +42,7 @@ for d1 in depth1s:
           for reg in regs:
             for dr in dropout_rates:
               # These parameters will be passed to cnn-deep.py.
-              parameters = "-l " + str(lr) + " -r " + str(reg) + " -d " + str(dr) + " -nf1 " + str(nf1) + " -nf2 " + str(nf2) + " -dp1 " + str(d1) + " -dp2 " + str(d2) + " -nt 3000 -e 3 -o ./ -frac"
+              parameters = "-l " + str(lr) + " -r " + str(reg) + " -d " + str(dr) + " -nf1 " + str(nf1) + " -nf2 " + str(nf2) + " -dp1 " + str(d1) + " -dp2 " + str(d2) + " -nt 1 -nv 1 -e 1 -o ./ -frac"
               command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
                 % (get_server_number(counter), parameters)
               print 'Executing command:', command
