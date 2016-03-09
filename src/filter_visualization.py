@@ -1,17 +1,11 @@
-'''Visualization of the filters of VGG16, via gradient ascent in input space.
+'''Visualization of the filters of a model via gradient ascent in input space.
 
 Script adapted from fchollet:
 https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py
 
-This script can run on CPU in a few minutes (with the TensorFlow backend).
-
-Results example: http://i.imgur.com/4nj4KjN.jpg
-
-Before running this script, download the weights for the VGG16 model at:
-https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?usp=sharing
-(source: https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
-and make sure the variable `weights_path` in this script matches the location of the file.
+python src/filter_visualization.py -l 0.001 -d 0 -r 1e-6 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -o ./
 '''
+
 from __future__ import print_function
 from scipy.misc import imsave
 import numpy as np
@@ -19,6 +13,7 @@ import time
 import os
 import h5py
 import pdb
+import argparse
 
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.regularizers import l2, activity_l2
@@ -26,6 +21,43 @@ from pool import FractionalMaxPooling2D
 from keras.models import Sequential
 from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
+
+DEFAULT_LR = 1e-4
+DEFAULT_REG = 0
+DEFAULT_NB_EPOCH = 2
+DEFAULT_LAYER_SIZE_1 = 32
+DEFAULT_LAYER_SIZE_2 = 64
+DEFAULT_DROPOUT = 0.25
+DEFAULT_OUT_DIR = '../outputs/'
+DEFAULT_DEPTH1 = 1
+DEFAULT_DEPTH2 = 2
+DEFAULT_FRAC_POOLING = False
+DEFAULT_SAVE_WEIGHTS = False
+
+
+def parse_args():
+  """
+  Parses the command line input.
+
+  """
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-l', default = DEFAULT_LR, help = 'learning rate', type=float)
+  parser.add_argument('-r', default = DEFAULT_REG, help = 'regularization', type=float)
+  parser.add_argument('-nf1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
+  parser.add_argument('-nf2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
+  parser.add_argument('-d', default = DEFAULT_DROPOUT, help = 'dropout rate', type=float)
+  parser.add_argument('-o', default = DEFAULT_OUT_DIR, help = 'location of output directory')
+  parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
+  parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
+  parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
+
+  args = parser.parse_args()
+  params = {
+    'lr': args.l, 'reg': args.r, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
+    'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2, 'fractional_pooling': args.frac
+  }
+
+  return params
 
 def generate_class_visualizations(model, out_class, out_path, img_width=48, img_height=48, num_channels=1):
     '''
@@ -81,7 +113,6 @@ def generate_class_visualizations(model, out_class, out_path, img_width=48, img_
         # pdb.set_trace()
         input_img_data += grads_value * step_val
 
-
         print('Current loss value:', loss_value)
 
     # decode the resulting input image
@@ -118,7 +149,7 @@ def generate_filter_visualizations(model, layer_name, out_path, img_width=48, im
         nb_filters: number of filters to consider (not the number of filters visualized).
         filter_grid_length: side length of the output square grid of filter visualizations.
     '''
-    print('Starting filter visualization...')
+    print('Starting filter visualization for layer:', layer_name)
 
     # this will contain our generated image
     input_img = K.placeholder((1, num_channels, img_width, img_height))
@@ -151,7 +182,7 @@ def generate_filter_visualizations(model, layer_name, out_path, img_width=48, im
         iterate = K.function([input_img], [loss, grads])
 
         # step size for gradient ascent
-        step = 1.
+        step = 2.
 
         # we start from a gray image with some random noise
         input_img_data = np.random.random((1, num_channels, img_width, img_height)) * 20 + 128.
@@ -162,14 +193,15 @@ def generate_filter_visualizations(model, layer_name, out_path, img_width=48, im
             input_img_data += grads_value * step
 
             print('Current loss value:', loss_value)
-            if loss_value <= 0.:
-                # some filters get stuck to 0, we can skip them
-                break
+            # if loss_value <= 0.:
+            #     # some filters get stuck to 0, we can skip them
+            #     break
 
         # decode the resulting input image
-        if loss_value > 0:
-            img = deprocess_image(input_img_data[0])
-            kept_filters.append((img, loss_value))
+        # if loss_value > 0:
+        img = deprocess_image(input_img_data[0])
+        kept_filters.append((img, loss_value))
+
         end_time = time.time()
         print('Filter %d processed in %ds' % (filter_index, end_time - start_time))
 
@@ -186,7 +218,7 @@ def generate_filter_visualizations(model, layer_name, out_path, img_width=48, im
     margin = 5
     width = n * img_width + (n - 1) * margin
     height = n * img_height + (n - 1) * margin
-    stitched_filters = np.zeros((width, height, 3))
+    stitched_filters = np.zeros((width, height, 3)) + 255.
 
     # fill the picture with our saved filters
     for i in range(n):
@@ -218,6 +250,10 @@ def deprocess_image(x):
     return x
 
 def load_custom_cnn(params, weights_path):
+    '''
+    Return a Keras Sequential model constructed according to
+    the input parameters and loaded with weights from weights_path.
+    '''
 
     reg = params.get('reg')
     nb_filters_1 = params.get('nb_filters_1')
@@ -366,23 +402,49 @@ def normalize(x):
     # utility function to normalize a tensor by its L2 norm
     return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
 
+def visualize_vgg():
+    for layer in ['conv1_1', 'conv2_1', 'conv2_2', 'conv5_1']:
+        model = load_vgg()
+        generate_filter_visualizations(model, layer,
+            'outputs/filters_vgg' + layer + '.png',
+            img_width=64, img_height=64, nb_filters=20,
+            filter_grid_length=2, num_channels=3)
+
+
+def visualize_filters_custom_model(params, weights_path, layer_name):
+    '''
+    Output an image visualizing filters at a particular layer in the CNN.
+    The generated images are input images that maximize the activations
+    of filters at a particular layer in the CNN.
+
+    Args:
+        params: parameters of the CNN to load.
+        weights_path: path to the .h5 file storing the model's weights.
+        layer_name: name of the layer (e.g. conv_3) to visualize.
+    '''
+
+    out_location = params['output_dir']
+    output_image = out_location + layer_name + "_filters.png"
+
+    # Load an empty (uncompiled) model from which to generate
+    # visualizations.
+    empty_model = load_custom_cnn(params, weights_path)
+
+    # Specify how many filters, of what size, at which layer, to which output
+    # path to generate. See the docstring for generate_filter_visualizations.
+    # try:
+    generate_filter_visualizations(empty_model, layer_name, output_image,
+        num_channels=1, img_width=48, img_height=48,
+        nb_filters=32, filter_grid_length=2)
+    # except Exception:
+        # print('Could not visualize weights for layer:', layer_name)
+
+
 def main():
-    # model = load_vgg()
-    # generate_filter_visualizations(model, 'conv1_1', 'outputs/filters_vgg_1_1.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
-
-    # model = load_vgg()
-    # generate_filter_visualizations(model, 'conv2_1', 'outputs/filters_vgg_2_1.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
-
-    # model = load_vgg()
-    # generate_filter_visualizations(model, 'conv2_2', 'outputs/filters_vgg_2_2.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
-
-    model = load_vgg()
-    generate_filter_visualizations(model, 'conv5_1', 'outputs/filters_vgg_5_3.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
-
-
-    # model = load_vgg()
-    # generate_filter_visualizations(model, 'conv5_1', 'outputs/filters.png', img_width=img_width, img_height=img_height, nb_filters=1, filter_grid_length=1)
-
+    params = parse_args()
+    weights_path = 'outputs/0.492214984848_weights.h5'
+    for layer_index in xrange(1, 8):
+        visualize_filters_custom_model(params, weights_path, 'conv_%d' % layer_index)
 
 if __name__ == '__main__':
     main()
