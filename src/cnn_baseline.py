@@ -145,7 +145,7 @@ class CNN:
 
     """
 
-    batch_size = 32
+    batch_size = 128
     nb_classes = 7
 
     nb_epoch = self.params.get('nb_epoch', DEFAULT_NB_EPOCH)
