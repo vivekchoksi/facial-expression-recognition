@@ -73,7 +73,7 @@ def generate_class_visualizations(model, out_class, out_path, img_width=48, img_
     input_img_data = np.random.random((1, num_channels, img_width, img_height)) * 20 + 128.
 
     # we run gradient ascent for many iterations
-    for i in range(10):
+    for i in range(20):
         loss_value, grads_value = iterate([input_img_data])
 
         # NOTE: Not sure how best to set step)val.
@@ -291,8 +291,8 @@ def load_custom_cnn(params, weights_path):
 
 def load_vgg():
     # dimensions of the generated pictures for each filter.
-    img_width = 48
-    img_height = 48
+    img_width = 64
+    img_height = 64
 
     # path to the model weights file.
     weights_path = 'data/vgg16_weights.h5'
@@ -367,8 +367,18 @@ def normalize(x):
     return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
 
 def main():
-    model = load_custom_cnn()
-    generate_filter_visualizations(model, 'conv3', 'outputs/filters.png', img_width=48, img_height=48, nb_filters=1, filter_grid_length=1)
+    # model = load_vgg()
+    # generate_filter_visualizations(model, 'conv1_1', 'outputs/filters_vgg_1_1.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
+
+    # model = load_vgg()
+    # generate_filter_visualizations(model, 'conv2_1', 'outputs/filters_vgg_2_1.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
+
+    # model = load_vgg()
+    # generate_filter_visualizations(model, 'conv2_2', 'outputs/filters_vgg_2_2.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
+
+    model = load_vgg()
+    generate_filter_visualizations(model, 'conv5_1', 'outputs/filters_vgg_5_3.png', img_width=64, img_height=64, nb_filters=20, filter_grid_length=2, num_channels=3)
+
 
     # model = load_vgg()
     # generate_filter_visualizations(model, 'conv5_1', 'outputs/filters.png', img_width=img_width, img_height=img_height, nb_filters=1, filter_grid_length=1)
