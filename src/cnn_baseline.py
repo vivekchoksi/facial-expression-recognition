@@ -39,7 +39,8 @@ DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
 DEFAULT_LAYER_SIZE_1 = 32
 DEFAULT_LAYER_SIZE_2 = 64
-DEFAULT_DROPOUT = 0.25
+DEFAULT_DROPOUT = 0.1
+DEFAULT_DROPOUT2 = 0.25
 DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
@@ -66,7 +67,8 @@ def parse_args():
   parser.add_argument('-nv', default = default_num_val, help = 'number of validation examples to use', type=int)
   parser.add_argument('-nf1', default = DEFAULT_LAYER_SIZE_1, help = 'number of filters in the first set of layers', type=int)
   parser.add_argument('-nf2', default = DEFAULT_LAYER_SIZE_2, help = 'number of filters in the second set of layers', type=int)
-  parser.add_argument('-d', default = DEFAULT_DROPOUT, help = 'dropout rate', type=float)
+  parser.add_argument('-d1', default = DEFAULT_DROPOUT1, help = 'dropout rate for first conv layer block', type=float)
+  parser.add_argument('-d2', default = DEFAULT_DROPOUT2, help = 'dropout rate for second conv layer block', type=float)
   parser.add_argument('-o', default = DEFAULT_OUT_DIR, help = 'location of output directory')
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
