@@ -34,15 +34,29 @@ counter = 0
 # depth1s = random.sample(xrange(2,3), 1)
 # depth2s = random.sample(xrange(2,3), 1)
 
-params = []
+params = [
+  # Depths 1, low dropout values, with batch norm
+  '-l 0.001 -d1 0 -d2 .2 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 1 -e 10 -o ./ -save -bn',
 
-# params.append('-l 0.001 -d 0 -r 1e-6 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -e 10 -o ./ -save') # Run that got 0.41 val acc.
-params.append('-l 0.001 -d 0 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -e 10 -o ./ -save') # Increasing regularization
-params.append('-l 0.001 -d 0.2 -r 1e-6 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -e 10 -o ./ -save') # Increasing regularization
-params.append('-l 0.001 -d 0 -r 1e-6 -nf1 32 -nf2 64 -dp1 1 -dp2 1 -e 15 -o ./ -save') # Shallower network for more epochs
+  # Depths 1, higher dropout values, with batch norm
+  '-l 0.001 -d1 .2 -d2 .5 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 1 -e 10 -o ./ -save -bn',
+
+  # Depth2 = 2, lower dropout values, without batch norm
+  '-l 0.001 -d1 0 -d2 .2 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -e 10 -o ./ -save',
+
+  # Depth2 = 2, higher dropout values, without batch norm
+  '-l 0.001 -d1 .2 -d2 .5 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 2 -e 10 -o ./ -save',
+
+  # Depth2 = 1, lower dropout values, without batch norm, with fractional max-pooling
+  '-l 0.001 -d1 0 -d2 .2 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 1 -e 10 -o ./ -save -frac',
+
+  # Depth2 = 1, lower dropout values, with batch norm, with fractional max-pooling
+  '-l 0.001 -d1 0 -d2 .2 -r 1e-5 -nf1 32 -nf2 64 -dp1 1 -dp2 1 -e 10 -o ./ -save -frac',
+]
+
 
 for p in params:
-  # These parameters will be passed to cnn-deep.py.
+  # These parameters will be passed to cnn_baseline.py.
   parameters = p
   command = "/usr/bin/expect -f run_baseline.exp %s '%s' &" \
     % (get_server_number(counter), parameters)
