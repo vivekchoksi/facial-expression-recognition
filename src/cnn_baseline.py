@@ -19,6 +19,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.normalization import BatchNormalization
 from keras.optimizers import SGD
 from keras.optimizers import Adam
 from keras.utils import np_utils
@@ -39,13 +40,14 @@ DEFAULT_REG = 0
 DEFAULT_NB_EPOCH = 2
 DEFAULT_LAYER_SIZE_1 = 32
 DEFAULT_LAYER_SIZE_2 = 64
-DEFAULT_DROPOUT = 0.1
+DEFAULT_DROPOUT1 = 0.1
 DEFAULT_DROPOUT2 = 0.25
 DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
 DEFAULT_SAVE_WEIGHTS = False
+DEFAULT_USE_BATCHNORM = False
 
 def parse_args():
   """
@@ -73,13 +75,14 @@ def parse_args():
   parser.add_argument('-dp1', default = DEFAULT_DEPTH1, help = 'depth of first set of network', type=int)
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
   parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
-  parser.add_argument('-save', action='store_true', default = DEFAULT_SAVE_WEIGHTS, help = 'whether to visualize filters')
+  parser.add_argument('-save', action='store_true', default = DEFAULT_SAVE_WEIGHTS, help = 'whether to save model weights at each epoch')
+  parser.add_argument('-bn', action='store_true', default = DEFAULT_USE_BATCHNORM, help = 'whether to use batchnorm')
 
   args = parser.parse_args()
   params = {
     'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
-    'dropout': args.d, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
-    'save_weights': args.save, 'fractional_pooling': args.frac
+    'dropout1': args.d1, 'dropout2': args.d2, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
+    'use_batchnorm': args.bn, 'save_weights': args.save, 'fractional_pooling': args.frac
   }
 
   return args.td, args.vd, args.nt, args.nv, params
@@ -139,6 +142,24 @@ class CNN:
 
     return X_data, y_data
 
+  def _add_batchnorm_layer(self, model):
+    '''
+    Add a batch normalization layer to the model if the params specify use batchnorm.
+    '''
+    if self.params.get('use_batchnorm', DEFAULT_USE_BATCHNORM):
+      model.add(BatchNormalization())
+
+  def _get_file_prefix(self):
+    file_prefix = ''
+    file_prefix += self.params['output_dir']
+    param_names = ['depth2', 'fractional_pooling', 'use_batchnorm', 'dropout1', 'dropout2']
+    for idx, param_name in enumerate(param_names):
+      file_prefix += param_name + '=' + str(self.params[param_name])
+      if idx < len(param_names) - 1:
+        file_prefix += '_'
+
+    return file_prefix
+
   def train(self):
     """
     Train the CNN model.
@@ -153,7 +174,8 @@ class CNN:
     reg = self.params.get('reg', DEFAULT_REG)
     nb_filters_1 = self.params.get('nb_filters_1', DEFAULT_LAYER_SIZE_1)
     nb_filters_2 = self.params.get('nb_filters_2', DEFAULT_LAYER_SIZE_2)
-    dropout = self.params.get('dropout', DEFAULT_DROPOUT)
+    dropout1 = self.params.get('dropout1', DEFAULT_DROPOUT1)
+    dropout2 = self.params.get('dropout2', DEFAULT_DROPOUT2)
     depth1 = self.params.get('depth1', DEFAULT_DEPTH1)
     depth2 = self.params.get('depth2', DEFAULT_DEPTH2)
     fractional_pooling = self.params.get('fractional_pooling', DEFAULT_FRAC_POOLING)
@@ -186,50 +208,68 @@ class CNN:
     model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same',
       name='conv_%d' % (conv_counter),
       input_shape=(img_channels, img_rows, img_cols)))
+    self._add_batchnorm_layer(model)
     conv_counter += 1
     model.add(Activation('relu'))
 
     for i in xrange(depth1):
         model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
           name='conv_%d' % (conv_counter)))
+        self._add_batchnorm_layer(model)
         conv_counter += 1
         model.add(Activation('relu'))
         model.add(Convolution2D(nb_filters_1, 3, 3, init=weight_init, border_mode='same', W_regularizer=l2(reg),
           name='conv_%d' % (conv_counter)))
+        self._add_batchnorm_layer(model)
         conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
         else:
             model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(dropout))
+        model.add(Dropout(dropout1))
 
     for i in xrange(depth2):
         model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
           name='conv_%d' % (conv_counter)))
+        self._add_batchnorm_layer(model)
         conv_counter += 1
         model.add(Activation('relu'))
         model.add(Convolution2D(nb_filters_2, 3, 3, border_mode='same', init=weight_init, W_regularizer=l2(reg),
           name='conv_%d' % (conv_counter)))
+        self._add_batchnorm_layer(model)
         conv_counter += 1
         model.add(Activation('relu'))
         if fractional_pooling:
             model.add(FractionalMaxPooling2D(pool_size=(np.sqrt(2), np.sqrt(2))))
         else:
             model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(dropout))
+        model.add(Dropout(dropout1))
 
     model.add(Flatten(input_shape=(img_rows, img_cols)))
-    model.add(Dense(512))
-    model.add(Activation('relu'))
-    model.add(Dropout(dropout))
+
+    # Add 4 fully connected layers.
+    dense_sizes = [512, 256, 128]
+    for idx, dense_size in enumerate(dense_sizes):
+      model.add(Dense(dense_size))
+      self._add_batchnorm_layer(model)
+      model.add(Activation('relu'))
+
+      # Use dropout2 only for the final dense layer.
+      if idx == len(dense_sizes) - 1:
+        model.add(Dropout(dropout2))
+      else:
+        model.add(Dropout(dropout1))
+
     model.add(Dense(nb_classes, init=weight_init))
     model.add(Activation('softmax'))
 
     # Use the Adam update rule.
     adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
+    logging.info('Starting compilation...')
     model.compile(loss='categorical_crossentropy', optimizer=adam)
+    logging.info('Finished compilation.')
 
     X_train = X_train.astype('float64')
     X_val = X_val.astype('float64')
@@ -255,7 +295,8 @@ class CNN:
     # Fit the model on the batches generated by datagen.flow().
     history = History()
     out_location = self.params['output_dir']
-    file_name = out_location + str(reg) + "_" + str(dropout) + ".hdf5"
+
+    file_name = self._get_file_prefix() + '.hdf5'
     checkpointer = ModelCheckpoint(filepath=file_name, save_best_only=True, mode='auto', verbose=1, monitor="val_acc")
     model.fit_generator(datagen.flow(X_train, Y_train, batch_size=batch_size),
               samples_per_epoch=X_train.shape[0],
