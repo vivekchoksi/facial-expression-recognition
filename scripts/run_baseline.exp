@@ -40,7 +40,7 @@ set timeout -1
 expect "*>"
 send "python src/cnn_baseline.py $parameters\r"
 
-expect "*>"
+expect "corn*>"
 send_user "Exiting corn$servernumber.stanford.edu"
 send "exit\r"
 
