@@ -155,7 +155,7 @@ class CNN:
   def _get_file_prefix(self):
     file_prefix = ''
     file_prefix += self.params['output_dir']
-    param_names = ['depth2', 'fractional_pooling', 'use_batchnorm', 'dropout1', 'dropout2']
+    param_names = ['lr', 'depth2', 'fractional_pooling', 'use_batchnorm', 'dropout1', 'dropout2']
     for idx, param_name in enumerate(param_names):
       file_prefix += param_name + '=' + str(self.params[param_name])
       if idx < len(param_names) - 1:
