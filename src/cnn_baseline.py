@@ -320,7 +320,7 @@ class CNN:
     if save_weights:
       file_name = self._get_file_prefix() + '.hdf5'
       checkpointer = ModelCheckpoint(filepath=file_name, save_best_only=True, mode='auto', verbose=1, monitor="val_acc")
-      callbacks.append([checkpointer])
+      callbacks.append(checkpointer)
 
     model.fit_generator(datagen.flow(X_train, Y_train, batch_size=batch_size),
               samples_per_epoch=X_train.shape[0],
