@@ -32,6 +32,7 @@ import os
 import numpy as np
 import argparse
 import logging
+import h5py
 
 IMG_DIM = 48
 DATA_DIR = 'data'
@@ -46,7 +47,7 @@ DEFAULT_OUT_DIR = '../outputs/'
 DEFAULT_DEPTH1 = 1
 DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
-DEFAULT_SAVE_WEIGHTS = True
+DEFAULT_SAVE_WEIGHTS = False
 DEFAULT_USE_BATCHNORM = False
 
 def parse_args():
@@ -62,6 +63,7 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('-td', default = train_data_file_default, help = 'training data file')
   parser.add_argument('-vd', default = val_data_file_default, help = 'validation data file')
+  parser.add_argument('-w', default = '', help = 'path to weights file from which to load model')
   parser.add_argument('-l', default = DEFAULT_LR, help = 'learning rate', type=float)
   parser.add_argument('-r', default = DEFAULT_REG, help = 'regularization', type=float)
   parser.add_argument('-e', default = DEFAULT_NB_EPOCH, help = 'number of epochs', type=int)
@@ -82,7 +84,8 @@ def parse_args():
   params = {
     'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
     'dropout1': args.d1, 'dropout2': args.d2, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
-    'use_batchnorm': args.bn, 'save_weights': args.save, 'fractional_pooling': args.frac
+    'use_batchnorm': args.bn, 'save_weights': args.save, 'fractional_pooling': args.frac,
+    'weights_path': args.w
   }
 
   return args.td, args.vd, args.nt, args.nv, params
@@ -159,6 +162,22 @@ class CNN:
         file_prefix += '_'
 
     return file_prefix
+
+  def _load_weights(self, model):
+    weights_path = self.params['weights_path']
+    logging.info('Loading weights from file: {}'.format(weights_path))
+    assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
+    f = h5py.File(weights_path)
+    for k in range(f.attrs['nb_layers']):
+      if k >= len(model.layers):
+        # We don't look at the last (fully connected) layers in the savefile.
+        break
+      g = f['layer_{}'.format(k)]
+      weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
+      model.layers[k].set_weights(weights)
+
+    f.close()
+    logging.info('Weights loaded.')
 
   def train(self):
     """
@@ -248,7 +267,7 @@ class CNN:
 
     model.add(Flatten(input_shape=(img_rows, img_cols)))
 
-    # Add 4 fully connected layers.
+    # Add 3 fully connected layers.
     dense_sizes = [512, 256, 128]
     for idx, dense_size in enumerate(dense_sizes):
       model.add(Dense(dense_size))
@@ -264,6 +283,9 @@ class CNN:
     model.add(Dense(nb_classes, init=weight_init))
     model.add(Activation('softmax'))
 
+    if self.params['weights_path'] is not '':
+      self._load_weights(model)
+
     # Use the Adam update rule.
     adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
@@ -271,8 +293,8 @@ class CNN:
     model.compile(loss='categorical_crossentropy', optimizer=adam)
     logging.info('Finished compilation.')
 
-    X_train = X_train.astype('float64')
-    X_val = X_val.astype('float64')
+    X_train = X_train.astype('float32')
+    X_val = X_val.astype('float32')
     X_train /= 255
     X_val /= 255
 
