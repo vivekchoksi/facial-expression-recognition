@@ -274,7 +274,12 @@ class CNN:
     model.add(Flatten(input_shape=(img_rows, img_cols)))
 
     # Add 3 fully connected layers.
-    dense_sizes = [512, 256, 128]
+    dense_sizes = None
+    if depth1 == 0 and depth2 == 0:
+      print('Running baseline with just 1 dense layer.')
+      dense_sizes = [512]
+    else:
+      dense_sizes = [512, 256, 128]
     for idx, dense_size in enumerate(dense_sizes):
       model.add(Dense(dense_size))
       self._add_batchnorm_layer(model)

@@ -453,7 +453,7 @@ def visualize_filters_custom_model(params, weights_path, layer_name):
 def main():
     params = parse_args()
     weights_path = 'final_outputs/lr=0.0005_depth2=2_fractional_pooling=False_use_batchnorm=False_dropout1=0.0_dropout2=0.2.hdf5'
-    for layer_index in xrange(1, 8):
+    for layer_index in xrange(8, 12):
         visualize_filters_custom_model(params, weights_path, 'conv_%d' % layer_index)
 
 if __name__ == '__main__':
