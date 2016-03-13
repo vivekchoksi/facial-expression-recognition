@@ -302,9 +302,19 @@ def load_custom_cnn(params, weights_path):
         model.add(Dropout(dropout))
 
     model.add(Flatten(input_shape=(48, 48)))
-    model.add(Dense(512))
-    model.add(Activation('relu'))
-    model.add(Dropout(dropout))
+
+    # Add 3 fully connected layers.
+    dense_sizes = [512, 256, 128]
+    for idx, dense_size in enumerate(dense_sizes):
+      model.add(Dense(dense_size))
+      model.add(Activation('relu'))
+
+      # Use dropout2 only for the final dense layer.
+      if idx == len(dense_sizes) - 1:
+        model.add(Dropout(0.2))
+      else:
+        model.add(Dropout(0))
+
     model.add(Dense(7, init=weight_init))
     model.add(Activation('softmax'))
 
@@ -442,7 +452,7 @@ def visualize_filters_custom_model(params, weights_path, layer_name):
 
 def main():
     params = parse_args()
-    weights_path = 'outputs/0.492214984848_weights.h5'
+    weights_path = 'final_outputs/lr=0.0005_depth2=2_fractional_pooling=False_use_batchnorm=False_dropout1=0.0_dropout2=0.2.hdf5'
     for layer_index in xrange(1, 8):
         visualize_filters_custom_model(params, weights_path, 'conv_%d' % layer_index)
 
