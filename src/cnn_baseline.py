@@ -28,8 +28,13 @@ from keras.regularizers import l2, activity_l2
 from pool import FractionalMaxPooling2D
 from filter_visualization import generate_filter_visualizations, generate_class_visualizations, load_custom_cnn
 
+import matplotlib.pyplot as plt
+
+import matplotlib.cm as cm
+
 import os
 import numpy as np
+import pdb
 import argparse
 import logging
 import h5py
@@ -49,6 +54,16 @@ DEFAULT_DEPTH2 = 2
 DEFAULT_FRAC_POOLING = False
 DEFAULT_SAVE_WEIGHTS = False
 DEFAULT_USE_BATCHNORM = False
+
+EMOTIONS = [
+  'Angry',
+  'Disgust',
+  'Fear',
+  'Happy',
+  'Sad',
+  'Surprise',
+  'Neutral',
+]
 
 def parse_args():
   """
@@ -78,13 +93,14 @@ def parse_args():
   parser.add_argument('-dp2', default = DEFAULT_DEPTH2, help = 'depth of second set of network', type=int)
   parser.add_argument('-frac', default = DEFAULT_FRAC_POOLING, help = 'pass to use fractional max pooling', dest='frac', action = 'store_true')
   parser.add_argument('-save', action='store_true', default = DEFAULT_SAVE_WEIGHTS, help = 'whether to save model weights at each epoch')
+  parser.add_argument('-p', action='store_true', default = False, help = 'whether to output class predictions')
   parser.add_argument('-bn', action='store_true', default = DEFAULT_USE_BATCHNORM, help = 'whether to use batchnorm')
 
   args = parser.parse_args()
   params = {
     'lr': args.l, 'reg': args.r, 'nb_epoch': args.e, 'nb_filters_1': args.nf1, 'nb_filters_2': args.nf2,
     'dropout1': args.d1, 'dropout2': args.d2, 'output_dir': args.o, 'depth1': args.dp1, 'depth2':args.dp2,
-    'use_batchnorm': args.bn, 'save_weights': args.save, 'fractional_pooling': args.frac,
+    'use_batchnorm': args.bn, 'save_weights': args.save, 'fractional_pooling': args.frac, 'predict': args.p,
     'weights_path': args.w
   }
 
@@ -184,6 +200,47 @@ class CNN:
     loss, accuracy = model.evaluate(X_val, Y_val, batch_size=128, show_accuracy=True, verbose=1)
     print('loss: ', loss)
     print('accuracy: ', accuracy)
+
+  def _display_wrong_predictions(self, model, X_val, y_val):
+    print('Making predictions...')
+    # predictions = model.predict_on_batch(X_val[0:10])
+
+    num_to_compare = 50
+    num_to_display = 12
+
+    # Get a small number of predicted and actual classes.
+    predicted = model.predict_classes(X_val[0:num_to_compare], batch_size=num_to_compare, verbose=1)
+    actual = y_val[0:num_to_compare]
+
+    # Store the first `num_to_display` misclassification images and classes.
+    misclassified_pixels = [] # Array to store image data of misclassified images.
+    misclassifications = [] # Array to store tuples of (predicted, actual) class.
+
+    for i in xrange(num_to_compare):
+      if len(misclassified_pixels) == num_to_display:
+        break
+      if predicted[i] != actual[i]:
+        # A misclassification.
+        pixels = X_val[i].reshape(IMG_DIM, IMG_DIM)
+        misclassified_pixels.append(pixels)
+        misclassifications.append((int(predicted[i]), int(actual[i])))
+
+    rows = 4
+    cols = 3
+
+    for idx, pixels in enumerate(misclassified_pixels):
+      predicted_emotion = EMOTIONS[misclassifications[idx][0]]
+      actual_emotion = EMOTIONS[misclassifications[idx][1]]
+      print('Predicted:', predicted_emotion, '; actual:', actual_emotion)
+      plt.subplot(rows, cols, idx + 1)
+      plt.gca().axis('off')
+      plt.imshow(pixels, cmap = cm.Greys_r)
+      plt.title('Predicted: ' + predicted_emotion + '\nActual: ' + actual_emotion)
+
+    plt.tight_layout(h_pad=0.01)
+    plt.show()
+
+    pdb.set_trace()
 
   def train(self):
     """
@@ -310,7 +367,10 @@ class CNN:
       model.compile(loss='categorical_crossentropy', optimizer=adam)
       logging.info('Finished compilation.')
 
-      self._evaluate(model, X_val, Y_val)
+      if self.params['predict']:
+        self._display_wrong_predictions(model, X_val, y_val)
+      else:
+        self._evaluate(model, X_val, Y_val)
 
     else:
       # Train and evaluate model.
