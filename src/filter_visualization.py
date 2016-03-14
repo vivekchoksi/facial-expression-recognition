@@ -337,8 +337,8 @@ def load_custom_cnn(params, weights_path):
 
 def load_vgg():
     # dimensions of the generated pictures for each filter.
-    img_width = 64
-    img_height = 64
+    img_width = 48
+    img_height = 48
 
     # path to the model weights file.
     weights_path = 'data/vgg16_weights.h5'
@@ -352,23 +352,23 @@ def load_vgg():
 
     model = Sequential()
     model.add(first_layer)
-    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
+    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1')) # 1
     model.add(ZeroPadding2D((1, 1)))
     model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
+    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1')) # 3
     model.add(ZeroPadding2D((1, 1)))
     model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1')) # 5
     model.add(ZeroPadding2D((1, 1)))
     model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
     model.add(ZeroPadding2D((1, 1)))
-    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3')) # 7
     model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
     model.add(ZeroPadding2D((1, 1)))
@@ -413,11 +413,11 @@ def normalize(x):
     return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
 
 def visualize_vgg():
-    for layer in ['conv1_1', 'conv2_1', 'conv2_2', 'conv5_1']:
+    for layer in ['conv1_1', 'conv2_1', 'conv3_1', 'conv3_3']:
         model = load_vgg()
         generate_filter_visualizations(model, layer,
-            'outputs/filters_vgg' + layer + '.png',
-            img_width=64, img_height=64, nb_filters=20,
+            'filters/vgg' + layer + '.png',
+            img_width=48, img_height=48, nb_filters=32,
             filter_grid_length=2, num_channels=3)
 
 
@@ -452,9 +452,10 @@ def visualize_filters_custom_model(params, weights_path, layer_name):
 
 def main():
     params = parse_args()
-    weights_path = 'final_outputs/lr=0.0005_depth2=2_fractional_pooling=False_use_batchnorm=False_dropout1=0.0_dropout2=0.2.hdf5'
-    for layer_index in xrange(8, 12):
-        visualize_filters_custom_model(params, weights_path, 'conv_%d' % layer_index)
+    visualize_vgg()
+    # weights_path = 'final_outputs/lr=0.0005_depth2=2_fractional_pooling=False_use_batchnorm=False_dropout1=0.0_dropout2=0.2.hdf5'
+    # for layer_index in xrange(8, 12):
+    #     visualize_filters_custom_model(params, weights_path, 'conv_%d' % layer_index)
 
 if __name__ == '__main__':
     main()
